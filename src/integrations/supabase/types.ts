@@ -57,56 +57,118 @@ export type Database = {
       }
       data_sources: {
         Row: {
+          category: string | null
+          connected_at: string | null
           connector_type: string | null
           created_at: string
+          credential_label: string | null
           difficulty_score: number | null
           host: string | null
           id: string
           last_discovery: string | null
           name: string
+          notes: string | null
           org_id: string
           port: number | null
           row_count: number | null
           schema_metadata: Json | null
+          sensitivity_labels: Json | null
           service_type: string
           status: string
           table_count: number | null
+          tags: Json | null
         }
         Insert: {
+          category?: string | null
+          connected_at?: string | null
           connector_type?: string | null
           created_at?: string
+          credential_label?: string | null
           difficulty_score?: number | null
           host?: string | null
           id?: string
           last_discovery?: string | null
           name: string
+          notes?: string | null
           org_id: string
           port?: number | null
           row_count?: number | null
           schema_metadata?: Json | null
+          sensitivity_labels?: Json | null
           service_type: string
           status?: string
           table_count?: number | null
+          tags?: Json | null
         }
         Update: {
+          category?: string | null
+          connected_at?: string | null
           connector_type?: string | null
           created_at?: string
+          credential_label?: string | null
           difficulty_score?: number | null
           host?: string | null
           id?: string
           last_discovery?: string | null
           name?: string
+          notes?: string | null
           org_id?: string
           port?: number | null
           row_count?: number | null
           schema_metadata?: Json | null
+          sensitivity_labels?: Json | null
           service_type?: string
           status?: string
           table_count?: number | null
+          tags?: Json | null
         }
         Relationships: [
           {
             foreignKeyName: "data_sources_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovery_scans: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          org_id: string
+          scan_type: string
+          sources_found: number | null
+          started_at: string
+          status: string
+          target: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          org_id: string
+          scan_type: string
+          sources_found?: number | null
+          started_at?: string
+          status?: string
+          target?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          org_id?: string
+          scan_type?: string
+          sources_found?: number | null
+          started_at?: string
+          status?: string
+          target?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_scans_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
