@@ -15,25 +15,18 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useOrg } from "@/lib/useOrg";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Search, Radar, Lock, Plug, Unplug, ShieldCheck, ChevronDown, History,
-  Trash2, Plus, Loader2, X,
+  Trash2, Plus, Loader2, X, Satellite, Radio,
 } from "lucide-react";
-import {
-  CONNECTOR_CATALOG, CATEGORIES, iconFor, classifySensitivity, SENSITIVITY_STYLE,
-  mockSchemaPreview, type Connector, type ConnectorCategory,
-} from "@/lib/connectors";
-import type { Tables } from "@/integrations/supabase/types";
+import { iconFor, CATEGORIES, SENSITIVITY_STYLE } from "@/lib/connectors";
+import { findApi, streamScan, type DataSourceRecord, type ConnectorMeta } from "@/lib/findApiClient";
 
 export const Route = createFileRoute("/_authenticated/app/find")({
   component: FindPage,
 });
-
-type DataSource = Tables<"data_sources">;
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   open: { label: "Open · Ready", cls: "bg-success/15 text-success border-success/30" },
@@ -46,6 +39,19 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
   return <Badge variant="outline" className={m.cls}>{m.label}</Badge>;
+}
+
+function IntegrationBadge({ mode }: { mode: string | null }) {
+  if (!mode) return null;
+  return mode === "real" ? (
+    <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 text-primary px-1.5 py-0 text-[10px]">
+      <Satellite className="h-2.5 w-2.5" /> Live API
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px] text-muted-foreground">
+      <Radio className="h-2.5 w-2.5" /> Simulated
+    </Badge>
+  );
 }
 
 function labels(json: unknown): string[] {
@@ -63,54 +69,20 @@ function SensitivityBadges({ items }: { items: string[] }) {
   );
 }
 
-const SCAN_TYPES: { id: string; label: string; placeholder: string; categories: ConnectorCategory[] }[] = [
-  { id: "network", label: "Network subnet scan", placeholder: "10.0.0.0/24", categories: ["Database", "Streaming"] },
-  { id: "cloud", label: "Cloud account scan", placeholder: "aws:prod-114", categories: ["Warehouse", "Storage"] },
-  { id: "saas", label: "SaaS OAuth sweep", placeholder: "workspace.company.com", categories: ["SaaS"] },
-];
-
-const OPEN_STATUS_POOL = ["open", "open", "open", "auth_required", "blocked"];
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
 }
 
-function randomOf<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+const SCAN_TYPES: { id: string; label: string; placeholder: string; scopeHint: string }[] = [
+  { id: "network", label: "Network subnet scan", placeholder: "10.0.0.0/24", scopeHint: "Database, Streaming" },
+  { id: "cloud", label: "Cloud account scan", placeholder: "aws:prod-114", scopeHint: "Warehouse, Storage" },
+  { id: "saas", label: "SaaS OAuth sweep", placeholder: "workspace.company.com", scopeHint: "SaaS" },
+];
 
-function buildCandidate(connector: Connector) {
-  const needsAuth = connector.fields.some((f) => f.type === "password");
-  const status = needsAuth ? randomOf(["auth_required", "open", "blocked"]) : randomOf(OPEN_STATUS_POOL);
-  const blocked = status === "blocked";
-  const name = `${connector.label} ${randomOf(["Prod", "Analytics", "Core", "Warehouse", "Reporting", "Ops"])}`;
-  const sensitivity = classifySensitivity({ name, service_type: connector.label, category: connector.category });
-  return {
-    name,
-    service_type: connector.label,
-    host: connector.id === "bigquery" ? `project-${Math.floor(1000 + Math.random() * 9000)}` : `${connector.id}.internal`,
-    port: connector.defaultPort ?? null,
-    status,
-    connector_type: connector.connectorType,
-    table_count: blocked ? 0 : Math.floor(10 + Math.random() * 240),
-    row_count: blocked ? 0 : Math.floor(50_000 + Math.random() * 90_000_000),
-    difficulty_score: blocked ? 4 : needsAuth ? 2 : 1,
-    category: connector.category,
-    tags: [] as string[],
-    sensitivity_labels: sensitivity,
-    schema_metadata: {},
-    credential_label: null as string | null,
-    connected_at: null as string | null,
-    notes: null as string | null,
-  };
-}
+type LiveCandidate = { name: string; service_type: string };
 
-function primaryAction(status: string): { label: string; action: "connect" | "authenticate" | "firewall_request" | "disconnect"; icon: typeof Plug } | null {
-  if (status === "blocked") return { label: "Firewall request", action: "firewall_request", icon: Lock };
+function primaryAction(status: string): { label: string; action: "connect" | "authenticate" | "firewall-request" | "disconnect"; icon: typeof Plug } | null {
+  if (status === "blocked") return { label: "Firewall request", action: "firewall-request", icon: Lock };
   if (status === "auth_required") return { label: "Authenticate", action: "authenticate", icon: ShieldCheck };
   if (status === "open" || status === "discovered") return { label: "Connect", action: "connect", icon: Plug };
   if (status === "connected") return { label: "Disconnect", action: "disconnect", icon: Unplug };
@@ -118,23 +90,21 @@ function primaryAction(status: string): { label: string; action: "connect" | "au
 }
 
 function FindPage() {
-  const { data: org } = useOrg();
   const qc = useQueryClient();
 
   // Scan panel state
   const [scanType, setScanType] = useState(SCAN_TYPES[0].id);
   const [target, setTarget] = useState(SCAN_TYPES[0].placeholder);
-  const [liveFeed, setLiveFeed] = useState<ReturnType<typeof buildCandidate>[]>([]);
-  const [scanning, setScanning] = useState(false);
+  const [liveFeed, setLiveFeed] = useState<LiveCandidate[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // Add-source dialog state
   const [addOpen, setAddOpen] = useState(false);
-  const [connectorId, setConnectorId] = useState(CONNECTOR_CATALOG[0].id);
+  const [connectorId, setConnectorId] = useState<string>("");
   const [addName, setAddName] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [testState, setTestState] = useState<"idle" | "testing" | "pass" | "fail">("idle");
-  const connector = CONNECTOR_CATALOG.find((c) => c.id === connectorId)!;
+  const [testMessage, setTestMessage] = useState<string | null>(null);
 
   // List toolbar state
   const [search, setSearch] = useState("");
@@ -145,119 +115,69 @@ function FindPage() {
   // Detail sheet state
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const { data: sources } = useQuery({
-    queryKey: ["sources", org?.id],
-    enabled: !!org?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("data_sources").select("*").eq("org_id", org!.id).order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: connectors } = useQuery({ queryKey: ["connectors"], queryFn: findApi.getConnectors });
+  const connector: ConnectorMeta | undefined = connectors?.find((c) => c.id === connectorId);
 
-  const { data: scans } = useQuery({
-    queryKey: ["scans", org?.id],
-    enabled: !!org?.id,
-    queryFn: async () => (await supabase.from("discovery_scans").select("*").eq("org_id", org!.id).order("created_at", { ascending: false }).limit(8)).data ?? [],
-  });
+  useEffect(() => {
+    if (!connectorId && connectors?.length) setConnectorId(connectors[0].id);
+  }, [connectors, connectorId]);
+
+  const { data: sources } = useQuery({ queryKey: ["sources"], queryFn: findApi.listSources });
+  const { data: scans } = useQuery({ queryKey: ["scans"], queryFn: findApi.listScans });
 
   const detailSource = sources?.find((s) => s.id === detailId) ?? null;
 
   const { data: sourceAudit } = useQuery({
     queryKey: ["source-audit", detailId],
     enabled: !!detailId,
-    queryFn: async () => (await supabase.from("audit_logs").select("*").eq("resource_id", detailId!).order("created_at", { ascending: false }).limit(20)).data ?? [],
+    queryFn: () => findApi.getAudit(detailId!),
+  });
+  const { data: sourceSchema } = useQuery({
+    queryKey: ["source-schema", detailId],
+    enabled: !!detailId,
+    queryFn: () => findApi.getSchema(detailId!),
   });
 
   const scan = useMutation({
     mutationFn: async () => {
-      if (!org) return { found: 0 };
-      const scope = SCAN_TYPES.find((s) => s.id === scanType)!;
-      const existingTypes = new Set((sources ?? []).map((s) => s.service_type));
-      const pool = CONNECTOR_CATALOG.filter((c) => scope.categories.includes(c.category) && !existingTypes.has(c.label));
-      if (pool.length === 0) return { found: 0 };
-
-      const { data: scanRow, error: scanErr } = await supabase.from("discovery_scans").insert({
-        org_id: org.id, scan_type: scanType, target, status: "running",
-      }).select().single();
-      if (scanErr) throw scanErr;
-
-      const count = Math.min(pool.length, 2 + Math.floor(Math.random() * 3));
-      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, count);
-      const candidates = shuffled.map(buildCandidate);
-
-      setScanning(true);
       setLiveFeed([]);
-      for (const c of candidates) {
-        await sleep(600 + Math.random() * 300);
-        setLiveFeed((f) => [...f, c]);
-      }
-      await sleep(400);
-
-      const { error: insertErr } = await supabase.from("data_sources").insert(candidates.map((c) => ({ ...c, org_id: org.id })));
-      if (insertErr) throw insertErr;
-
-      await supabase.from("discovery_scans").update({
-        status: "completed", completed_at: new Date().toISOString(), sources_found: candidates.length,
-      }).eq("id", scanRow.id);
-
-      await supabase.from("audit_logs").insert({
-        org_id: org.id, action: "scan.completed", resource_type: "discovery_scan", resource_id: scanRow.id,
-        details: { scan_type: scanType, target, sources_found: candidates.length },
+      const { id } = await findApi.startScan(scanType, target);
+      return new Promise<{ found: number }>((resolve, reject) => {
+        streamScan(id, {
+          onFound: (c) => setLiveFeed((f) => [...f, c as LiveCandidate]),
+          onCompleted: (payload) => resolve(payload as { found: number }),
+          onError: (payload) => reject(new Error((payload as { message?: string })?.message ?? "Scan failed")),
+        });
       });
-
-      return { found: candidates.length };
     },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["sources"] });
       qc.invalidateQueries({ queryKey: ["scans"] });
-      setScanning(false);
       setTimeout(() => setLiveFeed([]), 2500);
-      if (res?.found) toast.success(`Scan complete — ${res.found} new source${res.found > 1 ? "s" : ""} found`);
+      if (res.found) toast.success(`Scan complete — ${res.found} new source${res.found > 1 ? "s" : ""} found`);
       else toast.info("Scan complete — no new sources in this scope");
     },
-    onError: (e: unknown) => { setScanning(false); toast.error(errMsg(e)); },
+    onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
   const testConnection = useMutation({
-    mutationFn: async (): Promise<"pass" | "fail"> => {
+    mutationFn: async () => {
       setTestState("testing");
-      await sleep(1000 + Math.random() * 700);
-      const required = connector.fields.filter((f) => f.type !== "number");
-      const filled = required.every((f) => (fieldValues[f.key] ?? "").trim().length > 0);
-      if (!filled) return "fail";
-      return Math.random() < 0.88 ? "pass" : "fail";
+      setTestMessage(null);
+      return findApi.testConnector(connectorId, fieldValues);
     },
-    onSuccess: (r) => setTestState(r),
+    onSuccess: (result) => {
+      setTestState(result.ok ? "pass" : "fail");
+      setTestMessage(result.message);
+    },
+    onError: (e: unknown) => {
+      setTestState("fail");
+      setTestMessage(errMsg(e));
+    },
   });
 
   const addSource = useMutation({
-    mutationFn: async () => {
-      if (!org) return;
-      const name = addName.trim() || `${connector.label} source`;
-      const status = testState === "pass" ? "open" : testState === "fail" ? "auth_required" : "discovered";
-      const sensitivity = classifySensitivity({ name, service_type: connector.label, category: connector.category });
-      const { data, error } = await supabase.from("data_sources").insert({
-        org_id: org.id,
-        name,
-        service_type: connector.label,
-        host: fieldValues.host || null,
-        port: fieldValues.port ? Number(fieldValues.port) : connector.defaultPort ?? null,
-        connector_type: connector.connectorType,
-        status,
-        category: connector.category,
-        table_count: 0,
-        row_count: 0,
-        difficulty_score: 1,
-        sensitivity_labels: sensitivity,
-        tags: [],
-      }).select().single();
-      if (error) throw error;
-      await supabase.from("audit_logs").insert({
-        org_id: org.id, action: "source.added", resource_type: "data_source", resource_id: data.id,
-        details: { connector: connector.id, status },
-      });
-    },
+    mutationFn: () => findApi.createSource({ name: addName, connectorId, fields: fieldValues }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sources"] });
       toast.success("Source added");
@@ -265,54 +185,30 @@ function FindPage() {
       setAddName("");
       setFieldValues({});
       setTestState("idle");
+      setTestMessage(null);
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
   const lifecycle = useMutation({
-    mutationFn: async (vars: { id: string; action: "connect" | "authenticate" | "firewall_request" | "disconnect" }) => {
-      const src = sources?.find((s) => s.id === vars.id);
-      if (!src || !org) return;
-      if (vars.action === "authenticate") {
-        toast.loading("Authenticating…", { id: `act-${vars.id}` });
-        await sleep(1300);
-        toast.dismiss(`act-${vars.id}`);
-      }
-      if (vars.action === "firewall_request") {
-        toast.loading("Requesting firewall exception…", { id: `act-${vars.id}` });
-        await sleep(1500);
-        toast.dismiss(`act-${vars.id}`);
-      }
-      const patch =
-        vars.action === "connect" ? { status: "connected", connected_at: new Date().toISOString() } :
-        vars.action === "authenticate" ? { status: "connected", connected_at: new Date().toISOString(), credential_label: `OAuth token •••${Math.floor(1000 + Math.random() * 9000)}` } :
-        vars.action === "firewall_request" ? { status: "open" } :
-        { status: "open", connected_at: null };
-      const { error } = await supabase.from("data_sources").update(patch).eq("id", vars.id);
-      if (error) throw error;
-      await supabase.from("audit_logs").insert({
-        org_id: org.id, action: `source.${vars.action}`, resource_type: "data_source", resource_id: vars.id,
-        details: { name: src.name },
-      });
-    },
-    onSuccess: (_d, vars) => {
+    mutationFn: (vars: { id: string; action: "connect" | "authenticate" | "firewall-request" | "disconnect" }) =>
+      findApi.lifecycle(vars.id, vars.action),
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["sources"] });
       qc.invalidateQueries({ queryKey: ["source-audit", vars.id] });
-      const msg = { connect: "Connected", authenticate: "Authenticated & connected", firewall_request: "Firewall exception approved", disconnect: "Disconnected" }[vars.action];
+      const msg = {
+        connect: "Connected",
+        authenticate: "Authenticated & connected",
+        "firewall-request": "Firewall exception approved",
+        disconnect: "Disconnected",
+      }[vars.action];
       toast.success(msg);
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
   const deleteSource = useMutation({
-    mutationFn: async (id: string) => {
-      const src = sources?.find((s) => s.id === id);
-      const { error } = await supabase.from("data_sources").delete().eq("id", id);
-      if (error) throw error;
-      if (org) await supabase.from("audit_logs").insert({
-        org_id: org.id, action: "source.deleted", resource_type: "data_source", resource_id: id, details: { name: src?.name },
-      });
-    },
+    mutationFn: (id: string) => findApi.deleteSource(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sources"] });
       setDetailId(null);
@@ -322,33 +218,19 @@ function FindPage() {
   });
 
   const bulkConnect = useMutation({
-    mutationFn: async () => {
-      const ids = [...selected];
-      const { error } = await supabase.from("data_sources").update({ status: "connected", connected_at: new Date().toISOString() }).in("id", ids);
-      if (error) throw error;
-      if (org) await supabase.from("audit_logs").insert({
-        org_id: org.id, action: "source.bulk_connect", resource_type: "data_source", details: { count: ids.length },
-      });
-    },
+    mutationFn: () => findApi.bulkAction([...selected], "connect"),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sources"] }); setSelected(new Set()); toast.success("Sources connected"); },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
   const bulkDelete = useMutation({
-    mutationFn: async () => {
-      const ids = [...selected];
-      const { error } = await supabase.from("data_sources").delete().in("id", ids);
-      if (error) throw error;
-      if (org) await supabase.from("audit_logs").insert({
-        org_id: org.id, action: "source.bulk_delete", resource_type: "data_source", details: { count: ids.length },
-      });
-    },
+    mutationFn: () => findApi.bulkAction([...selected], "delete"),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sources"] }); setSelected(new Set()); toast.success("Sources deleted"); },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
   const filtered = useMemo(() => {
-    return (sources ?? []).filter((s) => {
+    return (sources ?? []).filter((s: DataSourceRecord) => {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
       if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
       if (search.trim() && !`${s.name} ${s.service_type} ${s.host ?? ""}`.toLowerCase().includes(search.trim().toLowerCase())) return false;
@@ -372,9 +254,9 @@ function FindPage() {
       <PageHeader
         phase="01 · Find"
         title="Data source discovery"
-        desc="Authorized network scans, cloud sweeps, and manual onboarding surface every database, API, and SaaS in your org."
+        desc="Backed by the find-service microservice — network scans, real SaaS/cloud connectors, and manual onboarding, callable by any system."
         action={
-          <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) { setFieldValues({}); setTestState("idle"); setAddName(""); } }}>
+          <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) { setFieldValues({}); setTestState("idle"); setTestMessage(null); setAddName(""); } }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground"><Plus className="mr-2 h-4 w-4" /> Add custom source</Button>
             </DialogTrigger>
@@ -386,13 +268,13 @@ function FindPage() {
               <div className="space-y-4">
                 <div>
                   <Label>Connector</Label>
-                  <Select value={connectorId} onValueChange={(v) => { setConnectorId(v); setFieldValues({}); setTestState("idle"); }}>
+                  <Select value={connectorId} onValueChange={(v) => { setConnectorId(v); setFieldValues({}); setTestState("idle"); setTestMessage(null); }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CATEGORIES.map((cat) => (
                         <div key={cat}>
                           <div className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{cat}</div>
-                          {CONNECTOR_CATALOG.filter((c) => c.category === cat).map((c) => (
+                          {connectors?.filter((c) => c.category === cat).map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
                           ))}
                         </div>
@@ -400,32 +282,40 @@ function FindPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Display name</Label><Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder={`${connector.label} source`} /></div>
-                {connector.fields.map((f) => (
-                  <div key={f.key}>
-                    <Label>{f.label}</Label>
-                    <Input
-                      type={f.type === "number" ? "number" : f.type}
-                      value={fieldValues[f.key] ?? ""}
-                      onChange={(e) => { setFieldValues({ ...fieldValues, [f.key]: e.target.value }); setTestState("idle"); }}
-                      placeholder={f.placeholder ?? (f.key === "port" ? String(connector.defaultPort ?? "") : undefined)}
-                    />
-                  </div>
-                ))}
+                {connector && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label>Display name</Label>
+                      <IntegrationBadge mode={connector.integration} />
+                    </div>
+                    <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder={`${connector.label} source`} />
+                    {connector.fields.map((f) => (
+                      <div key={f.key}>
+                        <Label>{f.label}</Label>
+                        <Input
+                          type={f.type === "number" ? "number" : f.type}
+                          value={fieldValues[f.key] ?? ""}
+                          onChange={(e) => { setFieldValues({ ...fieldValues, [f.key]: e.target.value }); setTestState("idle"); setTestMessage(null); }}
+                          placeholder={f.placeholder ?? (f.key === "port" ? String(connector.defaultPort ?? "") : undefined)}
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
                 <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-3 py-2">
                   <div className="text-xs text-muted-foreground">
                     {testState === "idle" && "Connection not tested yet"}
                     {testState === "testing" && "Testing connection…"}
-                    {testState === "pass" && <span className="text-success">Connection succeeded</span>}
-                    {testState === "fail" && <span className="text-destructive">Connection failed — check credentials</span>}
+                    {testState === "pass" && <span className="text-success">{testMessage ?? "Connection succeeded"}</span>}
+                    {testState === "fail" && <span className="text-destructive">{testMessage ?? "Connection failed"}</span>}
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => testConnection.mutate()} disabled={testState === "testing"}>
+                  <Button size="sm" variant="outline" onClick={() => testConnection.mutate()} disabled={testState === "testing" || !connector}>
                     {testState === "testing" ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null} Test connection
                   </Button>
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => addSource.mutate()} disabled={addSource.isPending}>Add source</Button>
+                <Button onClick={() => addSource.mutate()} disabled={addSource.isPending || !connector}>Add source</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -446,22 +336,22 @@ function FindPage() {
               <SelectContent>{SCAN_TYPES.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}</SelectContent>
             </Select>
             <Input value={target} onChange={(e) => setTarget(e.target.value)} className="max-w-xs" placeholder={scanScope.placeholder} />
-            <Button onClick={() => scan.mutate()} disabled={scanning} className="bg-primary text-primary-foreground">
-              <Search className="mr-2 h-4 w-4" /> {scanning ? "Scanning..." : "Scan"}
+            <Button onClick={() => scan.mutate()} disabled={scan.isPending} className="bg-primary text-primary-foreground">
+              <Search className="mr-2 h-4 w-4" /> {scan.isPending ? "Scanning..." : "Scan"}
             </Button>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
-            Scope: {scanScope.categories.join(", ")} connectors
+            Scope: {scanScope.scopeHint} connectors
           </div>
 
-          {(scanning || liveFeed.length > 0) && (
+          {(scan.isPending || liveFeed.length > 0) && (
             <div className="mt-4 space-y-1.5 rounded-lg border border-primary/20 bg-background/40 p-3 font-mono text-xs">
               {liveFeed.map((c, i) => (
                 <div key={i} className="flex items-center gap-2 text-foreground/80">
                   <span className="text-success">✓</span> found {c.service_type} · <span className="text-muted-foreground">{c.name}</span>
                 </div>
               ))}
-              {scanning && (
+              {scan.isPending && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" /> scanning {target}…
                 </div>
@@ -541,7 +431,7 @@ function FindPage() {
           ) : (
             <ul className="divide-y divide-border">
               {filtered.map((s) => {
-                const Icon = iconFor(s.service_type, s.category);
+                const Icon = iconFor(s.connector_id, s.category);
                 const action = primaryAction(s.status);
                 return (
                   <li key={s.id} className="flex items-center gap-4 p-5 hover:bg-secondary/30">
@@ -552,6 +442,7 @@ function FindPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{s.name}</span>
                           <StatusBadge status={s.status} />
+                          <IntegrationBadge mode={s.integration_mode} />
                           <SensitivityBadges items={labels(s.sensitivity_labels)} />
                         </div>
                         <div className="mt-1 font-mono text-xs text-muted-foreground">
@@ -596,6 +487,7 @@ function FindPage() {
                   <TabsContent value="overview" className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={detailSource.status} />
+                      <IntegrationBadge mode={detailSource.integration_mode} />
                       {detailSource.category && <Badge variant="outline">{detailSource.category}</Badge>}
                       <SensitivityBadges items={labels(detailSource.sensitivity_labels)} />
                     </div>
@@ -609,7 +501,7 @@ function FindPage() {
                     </div>
                   </TabsContent>
                   <TabsContent value="schema" className="space-y-2">
-                    {mockSchemaPreview(detailSource).map((t) => (
+                    {(sourceSchema ?? []).map((t) => (
                       <div key={t.table} className="rounded-lg border border-border bg-secondary/20 p-3">
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-sm font-medium">{t.table}</span>

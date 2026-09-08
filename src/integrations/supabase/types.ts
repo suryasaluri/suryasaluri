@@ -59,12 +59,14 @@ export type Database = {
         Row: {
           category: string | null
           connected_at: string | null
+          connector_id: string | null
           connector_type: string | null
           created_at: string
           credential_label: string | null
           difficulty_score: number | null
           host: string | null
           id: string
+          integration_mode: string | null
           last_discovery: string | null
           name: string
           notes: string | null
@@ -81,12 +83,14 @@ export type Database = {
         Insert: {
           category?: string | null
           connected_at?: string | null
+          connector_id?: string | null
           connector_type?: string | null
           created_at?: string
           credential_label?: string | null
           difficulty_score?: number | null
           host?: string | null
           id?: string
+          integration_mode?: string | null
           last_discovery?: string | null
           name: string
           notes?: string | null
@@ -103,12 +107,14 @@ export type Database = {
         Update: {
           category?: string | null
           connected_at?: string | null
+          connector_id?: string | null
           connector_type?: string | null
           created_at?: string
           credential_label?: string | null
           difficulty_score?: number | null
           host?: string | null
           id?: string
+          integration_mode?: string | null
           last_discovery?: string | null
           name?: string
           notes?: string | null
