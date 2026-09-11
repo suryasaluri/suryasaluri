@@ -14,15 +14,22 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as AuthenticatedAppAnalyzeRouteImport } from './routes/_authenticated/app.analyze'
-import { Route as AuthenticatedAppExtractRouteImport } from './routes/_authenticated/app.extract'
-import { Route as AuthenticatedAppFindRouteImport } from './routes/_authenticated/app.find'
-import { Route as AuthenticatedAppLoadRouteImport } from './routes/_authenticated/app.load'
-import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
-import { Route as AuthenticatedAppTransformRouteImport } from './routes/_authenticated/app.transform'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated/portal'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminApprovalsRouteImport } from './routes/_authenticated/admin.approvals'
+import { Route as AuthenticatedAdminDocumentsRouteImport } from './routes/_authenticated/admin.documents'
+import { Route as AuthenticatedAdminInventoryRouteImport } from './routes/_authenticated/admin.inventory'
+import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
+import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
+import { Route as AuthenticatedAdminTasksRouteImport } from './routes/_authenticated/admin.tasks'
+import { Route as AuthenticatedPortalIndexRouteImport } from './routes/_authenticated/portal.index'
+import { Route as AuthenticatedPortalBrowseRouteImport } from './routes/_authenticated/portal.browse'
+import { Route as AuthenticatedPortalDocumentsRouteImport } from './routes/_authenticated/portal.documents'
+import { Route as AuthenticatedPortalPaymentsRouteImport } from './routes/_authenticated/portal.payments'
+import { Route as AuthenticatedPortalStatusRouteImport } from './routes/_authenticated/portal.status'
+import { Route as AuthenticatedPortalPropertiesIdRouteImport } from './routes/_authenticated/portal.properties.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -48,52 +55,96 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedPortalRoute = AuthenticatedPortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedAppRoute,
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const AuthenticatedAppAnalyzeRoute = AuthenticatedAppAnalyzeRouteImport.update({
-  id: '/analyze',
-  path: '/analyze',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppExtractRoute = AuthenticatedAppExtractRouteImport.update({
-  id: '/extract',
-  path: '/extract',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppFindRoute = AuthenticatedAppFindRouteImport.update({
-  id: '/find',
-  path: '/find',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppLoadRoute = AuthenticatedAppLoadRouteImport.update({
-  id: '/load',
-  path: '/load',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppSettingsRoute =
-  AuthenticatedAppSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AuthenticatedAppRoute,
+const AuthenticatedAdminApprovalsRoute =
+  AuthenticatedAdminApprovalsRouteImport.update({
+    id: '/approvals',
+    path: '/approvals',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAppTransformRoute =
-  AuthenticatedAppTransformRouteImport.update({
-    id: '/transform',
-    path: '/transform',
-    getParentRoute: () => AuthenticatedAppRoute,
+const AuthenticatedAdminDocumentsRoute =
+  AuthenticatedAdminDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminInventoryRoute =
+  AuthenticatedAdminInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReportsRoute =
+  AuthenticatedAdminReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminTasksRoute = AuthenticatedAdminTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedPortalIndexRoute =
+  AuthenticatedPortalIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
+const AuthenticatedPortalBrowseRoute =
+  AuthenticatedPortalBrowseRouteImport.update({
+    id: '/browse',
+    path: '/browse',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
+const AuthenticatedPortalDocumentsRoute =
+  AuthenticatedPortalDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
+const AuthenticatedPortalPaymentsRoute =
+  AuthenticatedPortalPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
+const AuthenticatedPortalStatusRoute =
+  AuthenticatedPortalStatusRouteImport.update({
+    id: '/status',
+    path: '/status',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
+const AuthenticatedPortalPropertiesIdRoute =
+  AuthenticatedPortalPropertiesIdRouteImport.update({
+    id: '/properties/$id',
+    path: '/properties/$id',
+    getParentRoute: () => AuthenticatedPortalRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -101,29 +152,42 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/app': typeof AuthenticatedAppRouteWithChildren
-  '/api/chat': typeof ApiChatRoute
-  '/app/analyze': typeof AuthenticatedAppAnalyzeRoute
-  '/app/extract': typeof AuthenticatedAppExtractRoute
-  '/app/find': typeof AuthenticatedAppFindRoute
-  '/app/load': typeof AuthenticatedAppLoadRoute
-  '/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/app/transform': typeof AuthenticatedAppTransformRoute
-  '/app/': typeof AuthenticatedAppIndexRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/portal': typeof AuthenticatedPortalRouteWithChildren
+  '/admin/approvals': typeof AuthenticatedAdminApprovalsRoute
+  '/admin/documents': typeof AuthenticatedAdminDocumentsRoute
+  '/admin/inventory': typeof AuthenticatedAdminInventoryRoute
+  '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/tasks': typeof AuthenticatedAdminTasksRoute
+  '/portal/browse': typeof AuthenticatedPortalBrowseRoute
+  '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
+  '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/portal/status': typeof AuthenticatedPortalStatusRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/portal/': typeof AuthenticatedPortalIndexRoute
+  '/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/api/chat': typeof ApiChatRoute
-  '/app/analyze': typeof AuthenticatedAppAnalyzeRoute
-  '/app/extract': typeof AuthenticatedAppExtractRoute
-  '/app/find': typeof AuthenticatedAppFindRoute
-  '/app/load': typeof AuthenticatedAppLoadRoute
-  '/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/app/transform': typeof AuthenticatedAppTransformRoute
-  '/app': typeof AuthenticatedAppIndexRoute
+  '/admin/approvals': typeof AuthenticatedAdminApprovalsRoute
+  '/admin/documents': typeof AuthenticatedAdminDocumentsRoute
+  '/admin/inventory': typeof AuthenticatedAdminInventoryRoute
+  '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/tasks': typeof AuthenticatedAdminTasksRoute
+  '/portal/browse': typeof AuthenticatedPortalBrowseRoute
+  '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
+  '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/portal/status': typeof AuthenticatedPortalStatusRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/portal': typeof AuthenticatedPortalIndexRoute
+  '/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -132,15 +196,22 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
-  '/api/chat': typeof ApiChatRoute
-  '/_authenticated/app/analyze': typeof AuthenticatedAppAnalyzeRoute
-  '/_authenticated/app/extract': typeof AuthenticatedAppExtractRoute
-  '/_authenticated/app/find': typeof AuthenticatedAppFindRoute
-  '/_authenticated/app/load': typeof AuthenticatedAppLoadRoute
-  '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/_authenticated/app/transform': typeof AuthenticatedAppTransformRoute
-  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/portal': typeof AuthenticatedPortalRouteWithChildren
+  '/_authenticated/admin/approvals': typeof AuthenticatedAdminApprovalsRoute
+  '/_authenticated/admin/documents': typeof AuthenticatedAdminDocumentsRoute
+  '/_authenticated/admin/inventory': typeof AuthenticatedAdminInventoryRoute
+  '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/_authenticated/admin/tasks': typeof AuthenticatedAdminTasksRoute
+  '/_authenticated/portal/browse': typeof AuthenticatedPortalBrowseRoute
+  '/_authenticated/portal/documents': typeof AuthenticatedPortalDocumentsRoute
+  '/_authenticated/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/_authenticated/portal/status': typeof AuthenticatedPortalStatusRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/portal/': typeof AuthenticatedPortalIndexRoute
+  '/_authenticated/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -149,29 +220,42 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/reset-password'
-    | '/app'
-    | '/api/chat'
-    | '/app/analyze'
-    | '/app/extract'
-    | '/app/find'
-    | '/app/load'
-    | '/app/settings'
-    | '/app/transform'
-    | '/app/'
+    | '/admin'
+    | '/portal'
+    | '/admin/approvals'
+    | '/admin/documents'
+    | '/admin/inventory'
+    | '/admin/leads'
+    | '/admin/payments'
+    | '/admin/reports'
+    | '/admin/tasks'
+    | '/portal/browse'
+    | '/portal/documents'
+    | '/portal/payments'
+    | '/portal/status'
+    | '/admin/'
+    | '/portal/'
+    | '/portal/properties/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/forgot-password'
     | '/reset-password'
-    | '/api/chat'
-    | '/app/analyze'
-    | '/app/extract'
-    | '/app/find'
-    | '/app/load'
-    | '/app/settings'
-    | '/app/transform'
-    | '/app'
+    | '/admin/approvals'
+    | '/admin/documents'
+    | '/admin/inventory'
+    | '/admin/leads'
+    | '/admin/payments'
+    | '/admin/reports'
+    | '/admin/tasks'
+    | '/portal/browse'
+    | '/portal/documents'
+    | '/portal/payments'
+    | '/portal/status'
+    | '/admin'
+    | '/portal'
+    | '/portal/properties/$id'
   id:
     | '__root__'
     | '/'
@@ -179,15 +263,22 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/reset-password'
-    | '/_authenticated/app'
-    | '/api/chat'
-    | '/_authenticated/app/analyze'
-    | '/_authenticated/app/extract'
-    | '/_authenticated/app/find'
-    | '/_authenticated/app/load'
-    | '/_authenticated/app/settings'
-    | '/_authenticated/app/transform'
-    | '/_authenticated/app/'
+    | '/_authenticated/admin'
+    | '/_authenticated/portal'
+    | '/_authenticated/admin/approvals'
+    | '/_authenticated/admin/documents'
+    | '/_authenticated/admin/inventory'
+    | '/_authenticated/admin/leads'
+    | '/_authenticated/admin/payments'
+    | '/_authenticated/admin/reports'
+    | '/_authenticated/admin/tasks'
+    | '/_authenticated/portal/browse'
+    | '/_authenticated/portal/documents'
+    | '/_authenticated/portal/payments'
+    | '/_authenticated/portal/status'
+    | '/_authenticated/admin/'
+    | '/_authenticated/portal/'
+    | '/_authenticated/portal/properties/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,7 +287,6 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ApiChatRoute: typeof ApiChatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -236,101 +326,175 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/app': {
-      id: '/_authenticated/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AuthenticatedAppRouteImport
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/portal': {
+      id: '/_authenticated/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof AuthenticatedPortalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/app/': {
-      id: '/_authenticated/app/'
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
       path: '/'
-      fullPath: '/app/'
-      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/analyze': {
-      id: '/_authenticated/app/analyze'
-      path: '/analyze'
-      fullPath: '/app/analyze'
-      preLoaderRoute: typeof AuthenticatedAppAnalyzeRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/approvals': {
+      id: '/_authenticated/admin/approvals'
+      path: '/approvals'
+      fullPath: '/admin/approvals'
+      preLoaderRoute: typeof AuthenticatedAdminApprovalsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/extract': {
-      id: '/_authenticated/app/extract'
-      path: '/extract'
-      fullPath: '/app/extract'
-      preLoaderRoute: typeof AuthenticatedAppExtractRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/documents': {
+      id: '/_authenticated/admin/documents'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AuthenticatedAdminDocumentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/find': {
-      id: '/_authenticated/app/find'
-      path: '/find'
-      fullPath: '/app/find'
-      preLoaderRoute: typeof AuthenticatedAppFindRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/inventory': {
+      id: '/_authenticated/admin/inventory'
+      path: '/inventory'
+      fullPath: '/admin/inventory'
+      preLoaderRoute: typeof AuthenticatedAdminInventoryRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/load': {
-      id: '/_authenticated/app/load'
-      path: '/load'
-      fullPath: '/app/load'
-      preLoaderRoute: typeof AuthenticatedAppLoadRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/leads': {
+      id: '/_authenticated/admin/leads'
+      path: '/leads'
+      fullPath: '/admin/leads'
+      preLoaderRoute: typeof AuthenticatedAdminLeadsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/settings': {
-      id: '/_authenticated/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/app/transform': {
-      id: '/_authenticated/app/transform'
-      path: '/transform'
-      fullPath: '/app/transform'
-      preLoaderRoute: typeof AuthenticatedAppTransformRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/admin/reports': {
+      id: '/_authenticated/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/tasks': {
+      id: '/_authenticated/admin/tasks'
+      path: '/tasks'
+      fullPath: '/admin/tasks'
+      preLoaderRoute: typeof AuthenticatedAdminTasksRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/portal/': {
+      id: '/_authenticated/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof AuthenticatedPortalIndexRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
+    '/_authenticated/portal/browse': {
+      id: '/_authenticated/portal/browse'
+      path: '/browse'
+      fullPath: '/portal/browse'
+      preLoaderRoute: typeof AuthenticatedPortalBrowseRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
+    '/_authenticated/portal/documents': {
+      id: '/_authenticated/portal/documents'
+      path: '/documents'
+      fullPath: '/portal/documents'
+      preLoaderRoute: typeof AuthenticatedPortalDocumentsRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
+    '/_authenticated/portal/payments': {
+      id: '/_authenticated/portal/payments'
+      path: '/payments'
+      fullPath: '/portal/payments'
+      preLoaderRoute: typeof AuthenticatedPortalPaymentsRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
+    '/_authenticated/portal/status': {
+      id: '/_authenticated/portal/status'
+      path: '/status'
+      fullPath: '/portal/status'
+      preLoaderRoute: typeof AuthenticatedPortalStatusRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
+    '/_authenticated/portal/properties/$id': {
+      id: '/_authenticated/portal/properties/$id'
+      path: '/properties/$id'
+      fullPath: '/portal/properties/$id'
+      preLoaderRoute: typeof AuthenticatedPortalPropertiesIdRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
     }
   }
 }
 
-interface AuthenticatedAppRouteChildren {
-  AuthenticatedAppAnalyzeRoute: typeof AuthenticatedAppAnalyzeRoute
-  AuthenticatedAppExtractRoute: typeof AuthenticatedAppExtractRoute
-  AuthenticatedAppFindRoute: typeof AuthenticatedAppFindRoute
-  AuthenticatedAppLoadRoute: typeof AuthenticatedAppLoadRoute
-  AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
-  AuthenticatedAppTransformRoute: typeof AuthenticatedAppTransformRoute
-  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminApprovalsRoute: typeof AuthenticatedAdminApprovalsRoute
+  AuthenticatedAdminDocumentsRoute: typeof AuthenticatedAdminDocumentsRoute
+  AuthenticatedAdminInventoryRoute: typeof AuthenticatedAdminInventoryRoute
+  AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
+  AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
+  AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
+  AuthenticatedAdminTasksRoute: typeof AuthenticatedAdminTasksRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
-const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
-  AuthenticatedAppAnalyzeRoute: AuthenticatedAppAnalyzeRoute,
-  AuthenticatedAppExtractRoute: AuthenticatedAppExtractRoute,
-  AuthenticatedAppFindRoute: AuthenticatedAppFindRoute,
-  AuthenticatedAppLoadRoute: AuthenticatedAppLoadRoute,
-  AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
-  AuthenticatedAppTransformRoute: AuthenticatedAppTransformRoute,
-  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminApprovalsRoute: AuthenticatedAdminApprovalsRoute,
+  AuthenticatedAdminDocumentsRoute: AuthenticatedAdminDocumentsRoute,
+  AuthenticatedAdminInventoryRoute: AuthenticatedAdminInventoryRoute,
+  AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
+  AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
+  AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
+  AuthenticatedAdminTasksRoute: AuthenticatedAdminTasksRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
-const AuthenticatedAppRouteWithChildren =
-  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
+interface AuthenticatedPortalRouteChildren {
+  AuthenticatedPortalBrowseRoute: typeof AuthenticatedPortalBrowseRoute
+  AuthenticatedPortalDocumentsRoute: typeof AuthenticatedPortalDocumentsRoute
+  AuthenticatedPortalPaymentsRoute: typeof AuthenticatedPortalPaymentsRoute
+  AuthenticatedPortalStatusRoute: typeof AuthenticatedPortalStatusRoute
+  AuthenticatedPortalIndexRoute: typeof AuthenticatedPortalIndexRoute
+  AuthenticatedPortalPropertiesIdRoute: typeof AuthenticatedPortalPropertiesIdRoute
+}
+
+const AuthenticatedPortalRouteChildren: AuthenticatedPortalRouteChildren = {
+  AuthenticatedPortalBrowseRoute: AuthenticatedPortalBrowseRoute,
+  AuthenticatedPortalDocumentsRoute: AuthenticatedPortalDocumentsRoute,
+  AuthenticatedPortalPaymentsRoute: AuthenticatedPortalPaymentsRoute,
+  AuthenticatedPortalStatusRoute: AuthenticatedPortalStatusRoute,
+  AuthenticatedPortalIndexRoute: AuthenticatedPortalIndexRoute,
+  AuthenticatedPortalPropertiesIdRoute: AuthenticatedPortalPropertiesIdRoute,
+}
+
+const AuthenticatedPortalRouteWithChildren =
+  AuthenticatedPortalRoute._addFileChildren(AuthenticatedPortalRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedPortalRoute: typeof AuthenticatedPortalRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedPortalRoute: AuthenticatedPortalRouteWithChildren,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -342,7 +506,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

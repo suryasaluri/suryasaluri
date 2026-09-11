@@ -36,7 +36,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -79,20 +79,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Nexus Command — Find, Extract, Transform, Load, Analyze" },
-      { name: "description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics — in one." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Nexus Command — Find, Extract, Transform, Load, Analyze" },
-      { property: "og:description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics — in one." },
+      { title: "SAN Connect — Real Estate Sales & Operations Platform" },
+      {
+        name: "description",
+        content:
+          "SAN Connect unifies plot & flat inventory, sales, payments, documents and approvals across a customer portal and an internal operations dashboard.",
+      },
+      { name: "author", content: "SAN Connect" },
+      { property: "og:title", content: "SAN Connect — Real Estate Sales & Operations Platform" },
+      {
+        property: "og:description",
+        content:
+          "SAN Connect unifies plot & flat inventory, sales, payments, documents and approvals across a customer portal and an internal operations dashboard.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Nexus Command — Find, Extract, Transform, Load, Analyze" },
-      { name: "twitter:description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics — in one." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cbec111e-21ba-4aef-afc0-0748743fc7d2/id-preview-d7659a82--4ef1fd5c-ea2b-4680-8a44-2e19797a68df.lovable.app-1781262730327.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cbec111e-21ba-4aef-afc0-0748743fc7d2/id-preview-d7659a82--4ef1fd5c-ea2b-4680-8a44-2e19797a68df.lovable.app-1781262730327.png" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -119,8 +128,6 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -136,7 +143,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme="dark" position="top-right" />
+      <Toaster theme="light" position="top-right" />
     </QueryClientProvider>
   );
 }

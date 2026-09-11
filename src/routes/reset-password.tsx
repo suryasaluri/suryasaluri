@@ -5,10 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Reset password — Nexus Command" }, { name: "description", content: "Set a new password for your Nexus Command account." }] }),
+  head: () => ({
+    meta: [
+      { title: "Reset password — SAN Connect" },
+      { name: "description", content: "Set a new password for your SAN Connect account." },
+    ],
+  }),
   component: ResetPasswordPage,
 });
 
@@ -39,7 +45,7 @@ function ResetPasswordPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Password updated");
-    navigate({ to: "/app" });
+    navigate({ to: "/portal" });
   };
 
   return (
@@ -47,21 +53,51 @@ function ResetPasswordPage() {
       <div className="absolute inset-0 grid-bg opacity-30" />
       <div className="absolute inset-0 bg-hero-gradient" />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-        <Link to="/auth" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to sign in</Link>
-        <div className="mb-8 flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-md bg-primary-gradient text-primary-foreground"><Database className="h-4 w-4" /></div>
-          <span className="font-display text-xl font-bold">Nexus <span className="text-primary">Command</span></span>
+        <Link
+          to="/auth"
+          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to sign in
+        </Link>
+        <div className="mb-8">
+          <Logo />
         </div>
         <div className="rounded-2xl border border-border bg-card-gradient p-6 shadow-card">
           <h1 className="text-xl font-semibold">Set a new password</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Choose a strong password you haven't used before.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose a strong password you haven't used before.
+          </p>
           {!ready ? (
             <p className="mt-6 text-sm text-muted-foreground">Verifying your reset link…</p>
           ) : (
             <form onSubmit={submit} className="mt-6 space-y-4">
-              <div><Label>New password</Label><Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-              <div><Label>Confirm password</Label><Input type="password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
-              <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={loading}>Update password</Button>
+              <div>
+                <Label>New password</Label>
+                <Input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Confirm password</Label>
+                <Input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground"
+                disabled={loading}
+              >
+                Update password
+              </Button>
             </form>
           )}
         </div>
