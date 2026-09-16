@@ -1,30 +1,21 @@
 import { describe, test, expect } from "bun:test";
-import { listConnectors, getConnector, CATEGORIES } from "../src/connectors/registry";
+import { listConnectors, getConnector } from "../src/connectors/registry";
 
 describe("connector registry", () => {
-  test("has 20 connectors with unique ids", () => {
+  test("has exactly one connector today: Oracle", () => {
     const modules = listConnectors();
-    const ids = modules.map((m) => m.meta.id);
-    expect(ids.length).toBe(20);
-    expect(new Set(ids).size).toBe(ids.length);
+    expect(modules.length).toBe(1);
+    expect(modules[0].meta.id).toBe("oracle");
   });
 
-  test("splits evenly between real and simulated integrations", () => {
-    const modules = listConnectors();
-    const real = modules.filter((m) => m.meta.integration === "real").length;
-    const simulated = modules.filter((m) => m.meta.integration === "simulated").length;
-    expect(real).toBe(10);
-    expect(simulated).toBe(10);
+  test("getConnector resolves oracle and returns undefined for an unknown id", () => {
+    expect(getConnector("oracle")?.meta.label).toBe("Oracle / Oracle Fusion");
+    expect(getConnector("postgresql")).toBeUndefined();
   });
 
-  test("every connector belongs to a known category", () => {
-    for (const m of listConnectors()) {
-      expect(CATEGORIES as readonly string[]).toContain(m.meta.category);
-    }
-  });
-
-  test("getConnector resolves a known id and returns undefined for an unknown one", () => {
-    expect(getConnector("stripe")?.meta.label).toBe("Stripe");
-    expect(getConnector("nonexistent")).toBeUndefined();
+  test("oracle connector exposes both testConnection and introspectSchema", () => {
+    const oracle = getConnector("oracle")!;
+    expect(typeof oracle.testConnection).toBe("function");
+    expect(typeof oracle.introspectSchema).toBe("function");
   });
 });

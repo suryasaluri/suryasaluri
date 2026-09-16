@@ -75,10 +75,12 @@ export type Database = {
           row_count: number | null
           schema_metadata: Json | null
           sensitivity_labels: Json | null
+          service_name: string | null
           service_type: string
           status: string
           table_count: number | null
           tags: Json | null
+          username: string | null
         }
         Insert: {
           category?: string | null
@@ -99,10 +101,12 @@ export type Database = {
           row_count?: number | null
           schema_metadata?: Json | null
           sensitivity_labels?: Json | null
+          service_name?: string | null
           service_type: string
           status?: string
           table_count?: number | null
           tags?: Json | null
+          username?: string | null
         }
         Update: {
           category?: string | null
@@ -123,14 +127,175 @@ export type Database = {
           row_count?: number | null
           schema_metadata?: Json | null
           sensitivity_labels?: Json | null
+          service_name?: string | null
           service_type?: string
           status?: string
           table_count?: number | null
           tags?: Json | null
+          username?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "data_sources_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentation_snapshots: {
+        Row: {
+          created_at: string
+          data_source_id: string
+          functional_markdown: string | null
+          generated_at: string
+          id: string
+          org_id: string
+          technical_markdown: string
+        }
+        Insert: {
+          created_at?: string
+          data_source_id: string
+          functional_markdown?: string | null
+          generated_at?: string
+          id?: string
+          org_id: string
+          technical_markdown: string
+        }
+        Update: {
+          created_at?: string
+          data_source_id?: string
+          functional_markdown?: string | null
+          generated_at?: string
+          id?: string
+          org_id?: string
+          technical_markdown?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentation_snapshots_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentation_snapshots_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schema_crawls: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          data_source_id: string
+          error_message: string | null
+          id: string
+          org_id: string
+          started_at: string
+          status: string
+          status_fields: Json | null
+          tables_found: number | null
+          views_found: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          data_source_id: string
+          error_message?: string | null
+          id?: string
+          org_id: string
+          started_at?: string
+          status?: string
+          status_fields?: Json | null
+          tables_found?: number | null
+          views_found?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          data_source_id?: string
+          error_message?: string | null
+          id?: string
+          org_id?: string
+          started_at?: string
+          status?: string
+          status_fields?: Json | null
+          tables_found?: number | null
+          views_found?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schema_crawls_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schema_crawls_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schema_objects: {
+        Row: {
+          columns: Json
+          created_at: string
+          data_source_id: string
+          foreign_keys: Json
+          id: string
+          name: string
+          object_type: string
+          org_id: string
+          primary_key: Json
+          row_estimate: number | null
+          sensitivity_labels: Json | null
+        }
+        Insert: {
+          columns?: Json
+          created_at?: string
+          data_source_id: string
+          foreign_keys?: Json
+          id?: string
+          name: string
+          object_type: string
+          org_id: string
+          primary_key?: Json
+          row_estimate?: number | null
+          sensitivity_labels?: Json | null
+        }
+        Update: {
+          columns?: Json
+          created_at?: string
+          data_source_id?: string
+          foreign_keys?: Json
+          id?: string
+          name?: string
+          object_type?: string
+          org_id?: string
+          primary_key?: Json
+          row_estimate?: number | null
+          sensitivity_labels?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schema_objects_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schema_objects_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"

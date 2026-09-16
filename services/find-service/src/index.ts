@@ -1,8 +1,10 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerConnectorRoutes } from "./routes/connectors";
-import { registerSourceRoutes } from "./routes/sources";
-import { registerScanRoutes } from "./routes/scans";
+import { registerConnectionRoutes } from "./routes/connections";
+import { registerCrawlRoutes } from "./routes/crawls";
+import { registerSchemaRoutes } from "./routes/schema";
+import { registerDocumentationRoutes } from "./routes/documentation";
 
 const app = Fastify({ logger: true });
 
@@ -17,8 +19,10 @@ registerConnectorRoutes(app);
 
 // Each wrapped in its own encapsulated plugin context so requireAuth (added
 // via addHook inside these) only applies to their own routes, not globally.
-app.register(async (instance) => registerSourceRoutes(instance));
-app.register(async (instance) => registerScanRoutes(instance));
+app.register(async (instance) => registerConnectionRoutes(instance));
+app.register(async (instance) => registerCrawlRoutes(instance));
+app.register(async (instance) => registerSchemaRoutes(instance));
+app.register(async (instance) => registerDocumentationRoutes(instance));
 
 const port = Number(process.env.PORT ?? 4001);
 app

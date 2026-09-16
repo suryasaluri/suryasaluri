@@ -1,38 +1,17 @@
-import type { ConnectorModule } from "./types";
-import { stripeConnector } from "./stripe";
-import { hubspotConnector } from "./hubspot";
-import { zendeskConnector } from "./zendesk";
-import { databricksConnector } from "./databricks";
-import { s3Connector } from "./s3";
-import { kinesisConnector } from "./kinesis";
-import { gcsConnector } from "./gcs";
-import { bigqueryConnector } from "./bigquery";
-import { azureBlobConnector } from "./azureBlob";
-import { salesforceConnector } from "./salesforce";
-import { simulatedConnectors } from "./simulated";
+import type { SchemaConnectorModule } from "./types";
+import { oracleConnector } from "./oracle";
 
-const MODULES: ConnectorModule[] = [
-  stripeConnector,
-  hubspotConnector,
-  zendeskConnector,
-  databricksConnector,
-  s3Connector,
-  kinesisConnector,
-  gcsConnector,
-  bigqueryConnector,
-  azureBlobConnector,
-  salesforceConnector,
-  ...simulatedConnectors,
-];
+// One connector today. New database types are added here as their own
+// module implementing SchemaConnectorModule — nothing else in the service
+// changes, per the "plug-in style support for other databases" requirement.
+const MODULES: SchemaConnectorModule[] = [oracleConnector];
 
 const REGISTRY = new Map(MODULES.map((m) => [m.meta.id, m]));
 
-export function getConnector(id: string): ConnectorModule | undefined {
+export function getConnector(id: string): SchemaConnectorModule | undefined {
   return REGISTRY.get(id);
 }
 
-export function listConnectors(): ConnectorModule[] {
+export function listConnectors(): SchemaConnectorModule[] {
   return MODULES;
 }
-
-export const CATEGORIES = ["Database", "Warehouse", "SaaS", "Storage", "Streaming"] as const;

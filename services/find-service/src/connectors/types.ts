@@ -1,4 +1,6 @@
-export type ConnectorCategory = "Database" | "Warehouse" | "SaaS" | "Storage" | "Streaming";
+import type { NormalizedSchema } from "../schema/types";
+
+export type ConnectorCategory = "Database";
 
 export type FieldSpec = {
   key: string;
@@ -13,7 +15,6 @@ export type ConnectorMeta = {
   category: ConnectorCategory;
   connectorType: string;
   defaultPort?: number;
-  integration: "real" | "simulated";
   fields: FieldSpec[];
 };
 
@@ -23,7 +24,14 @@ export type TestResult = {
   meta?: Record<string, unknown>;
 };
 
-export type ConnectorModule = {
+export type IntrospectionProgressEvent =
+  | { type: "table_found"; table: { name: string; objectType: "TABLE" | "VIEW" } };
+
+export type SchemaConnectorModule = {
   meta: ConnectorMeta;
   testConnection(fields: Record<string, string>): Promise<TestResult>;
+  introspectSchema(
+    fields: Record<string, string>,
+    onProgress: (event: IntrospectionProgressEvent) => void,
+  ): Promise<NormalizedSchema>;
 };

@@ -2,8 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 const BASE_URL = import.meta.env.VITE_FIND_SERVICE_URL || "http://localhost:4001";
 
-export type ConnectorCategory = "Database" | "Warehouse" | "SaaS" | "Storage" | "Streaming";
-
 export type FieldSpec = {
   key: string;
   label: string;
@@ -14,10 +12,9 @@ export type FieldSpec = {
 export type ConnectorMeta = {
   id: string;
   label: string;
-  category: ConnectorCategory;
+  category: "Database";
   connectorType: string;
   defaultPort?: number;
-  integration: "real" | "simulated";
   fields: FieldSpec[];
 };
 
@@ -27,7 +24,7 @@ export type TestResult = {
   meta?: Record<string, unknown>;
 };
 
-export type DataSourceRecord = {
+export type ConnectionRecord = {
   id: string;
   org_id: string;
   name: string;
@@ -36,36 +33,63 @@ export type DataSourceRecord = {
   integration_mode: string | null;
   host: string | null;
   port: number | null;
+  service_name: string | null;
+  username: string | null;
   connector_type: string | null;
   status: string;
   category: string | null;
-  table_count: number | null;
-  row_count: number | null;
-  difficulty_score: number | null;
-  sensitivity_labels: unknown;
-  tags: unknown;
   credential_label: string | null;
   connected_at: string | null;
-  notes: string | null;
-  schema_metadata: unknown;
+  sensitivity_labels: unknown;
   created_at: string;
-  last_discovery: string | null;
 };
 
-export type ScanRecord = {
+export type StatusFieldCandidate = {
+  table: string;
+  column: string;
+  candidateValues: string[] | null;
+  source: "check_constraint" | "name_heuristic";
+};
+
+export type CrawlRecord = {
   id: string;
-  org_id: string;
-  scan_type: string;
-  target: string | null;
+  data_source_id: string;
   status: string;
-  sources_found: number | null;
+  tables_found: number | null;
+  views_found: number | null;
+  status_fields: StatusFieldCandidate[];
+  error_message: string | null;
   started_at: string;
   completed_at: string | null;
   created_at: string;
 };
 
-export type SchemaTable = { table: string; rows: number; columns: string[] };
-export type AuditEntry = { id: string; action: string; created_at: string; details: unknown };
+export type ColumnDef = { name: string; dataType: string; nullable: boolean };
+export type ForeignKeyDef = { constraintName: string; columns: string[]; refTable: string; refColumns: string[] };
+export type TableDef = {
+  name: string;
+  objectType: "TABLE" | "VIEW";
+  columns: ColumnDef[];
+  primaryKey: string[];
+  foreignKeys: ForeignKeyDef[];
+  rowEstimate: number | null;
+  sensitivityLabels?: string[];
+};
+export type RelationshipEdge = { fromTable: string; fromColumns: string[]; toTable: string; toColumns: string[]; constraintName: string };
+
+export type SchemaResponse = {
+  tables: TableDef[];
+  relationships: RelationshipEdge[];
+  statusFields: StatusFieldCandidate[];
+  lastCrawledAt: string | null;
+};
+
+export type DocumentationSnapshot = {
+  id: string;
+  technical_markdown: string;
+  functional_markdown: string | null;
+  generated_at: string;
+};
 
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -82,7 +106,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const body = await res.json();
       if (body?.error) message = body.error;
     } catch {
-      // ignore — fall back to statusText
+      // fall back to statusText
     }
     throw new Error(message);
   }
@@ -95,41 +119,43 @@ export const findApi = {
   testConnector: (id: string, fields: Record<string, string>) =>
     request<TestResult>(`/connectors/${id}/test`, { method: "POST", body: JSON.stringify({ fields }) }),
 
-  listSources: () => request<DataSourceRecord[]>("/sources"),
-  createSource: (body: { name?: string; connectorId: string; fields: Record<string, string> }) =>
-    request<DataSourceRecord>("/sources", { method: "POST", body: JSON.stringify(body) }),
-  lifecycle: (id: string, action: "connect" | "authenticate" | "firewall-request" | "disconnect") =>
-    request<DataSourceRecord>(`/sources/${id}/${action}`, { method: "POST" }),
-  deleteSource: (id: string) => request<void>(`/sources/${id}`, { method: "DELETE" }),
-  bulkAction: (ids: string[], action: "connect" | "delete") =>
-    request<{ ok: true }>("/sources/bulk", { method: "POST", body: JSON.stringify({ ids, action }) }),
-  getSchema: (id: string) => request<SchemaTable[]>(`/sources/${id}/schema`),
-  getAudit: (id: string) => request<AuditEntry[]>(`/sources/${id}/audit`),
+  listConnections: () => request<ConnectionRecord[]>("/connections"),
+  registerConnection: (body: { name?: string; connectorId: string; fields: Record<string, string> }) =>
+    request<ConnectionRecord>("/connections", { method: "POST", body: JSON.stringify(body) }),
+  testConnection: (id: string, fields: Record<string, string>) =>
+    request<ConnectionRecord>(`/connections/${id}/test`, { method: "POST", body: JSON.stringify({ fields }) }),
+  deleteConnection: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
 
-  listScans: () => request<ScanRecord[]>("/scans"),
-  startScan: (scanType: string, target?: string) =>
-    request<{ id: string; status: string }>("/scans", { method: "POST", body: JSON.stringify({ scanType, target }) }),
+  listCrawls: (connectionId: string) => request<CrawlRecord[]>(`/connections/${connectionId}/crawls`),
+  startCrawl: (connectionId: string, fields: Record<string, string>) =>
+    request<{ id: string; status: string }>(`/connections/${connectionId}/crawl`, { method: "POST", body: JSON.stringify({ fields }) }),
+
+  getSchema: (connectionId: string) => request<SchemaResponse>(`/connections/${connectionId}/schema`),
+
+  getDocumentation: (connectionId: string) => request<DocumentationSnapshot>(`/connections/${connectionId}/documentation`),
+  regenerateDocumentation: (connectionId: string) =>
+    request<DocumentationSnapshot>(`/connections/${connectionId}/documentation/regenerate`, { method: "POST" }),
 };
 
-type StreamHandlers = {
-  onFound?: (data: unknown) => void;
+type CrawlStreamHandlers = {
+  onTableFound?: (data: unknown) => void;
   onCompleted?: (data: unknown) => void;
   onError?: (data: unknown) => void;
 };
 
 /**
- * Manually parses the /scans/:id/stream SSE response via fetch (rather than
+ * Manually parses the /crawls/:id/stream SSE response via fetch (rather than
  * the native EventSource, which can't send an Authorization header) so the
- * scan progress stream authenticates the same way as every other call.
+ * crawl progress stream authenticates the same way as every other call.
  */
-export function streamScan(scanId: string, handlers: StreamHandlers): { cancel: () => void } {
+export function streamCrawl(crawlId: string, handlers: CrawlStreamHandlers): { cancel: () => void } {
   const controller = new AbortController();
 
   (async () => {
     const headers = await authHeader();
     let res: Response;
     try {
-      res = await fetch(`${BASE_URL}/scans/${scanId}/stream`, { headers, signal: controller.signal });
+      res = await fetch(`${BASE_URL}/crawls/${crawlId}/stream`, { headers, signal: controller.signal });
     } catch {
       return;
     }
@@ -155,7 +181,7 @@ export function streamScan(scanId: string, handlers: StreamHandlers): { cancel: 
         } catch {
           payload = dataMatch[1];
         }
-        if (type === "found") handlers.onFound?.(payload);
+        if (type === "table_found") handlers.onTableFound?.(payload);
         else if (type === "completed") handlers.onCompleted?.(payload);
         else if (type === "error") handlers.onError?.(payload);
       }

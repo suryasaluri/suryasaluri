@@ -1,45 +1,12 @@
-import { Database, Cloud, FileBox, Server, Workflow, type LucideIcon } from "lucide-react";
-import type { ConnectorCategory } from "@/lib/findApiClient";
+import { Database, type LucideIcon } from "lucide-react";
 
-export type { ConnectorCategory };
-
-export const CATEGORIES: ConnectorCategory[] = ["Database", "Warehouse", "SaaS", "Storage", "Streaming"];
-
-export const CATEGORY_ICON: Record<ConnectorCategory, LucideIcon> = {
-  Database: Database,
-  Warehouse: Server,
-  SaaS: Cloud,
-  Storage: FileBox,
-  Streaming: Workflow,
-};
-
-const ICON_BY_CONNECTOR_ID: Record<string, LucideIcon> = {
-  postgresql: Database,
-  mysql: Database,
-  mariadb: Database,
-  sqlserver: Database,
+/** Only one connector today (Oracle) — this stays a lookup so a second one drops in cleanly later. */
+export const CONNECTOR_ICON: Record<string, LucideIcon> = {
   oracle: Database,
-  mongodb: Database,
-  snowflake: Server,
-  bigquery: Server,
-  redshift: Server,
-  databricks: Server,
-  salesforce: Cloud,
-  hubspot: Cloud,
-  stripe: Cloud,
-  zendesk: Cloud,
-  workday: Cloud,
-  s3: FileBox,
-  gcs: FileBox,
-  azure_blob: FileBox,
-  kafka: Workflow,
-  kinesis: Workflow,
 };
 
-/** Catalog data (labels, categories, field specs) now lives in find-service — GET /connectors is the source of truth. This is just icon lookup for display. */
-export function iconFor(connectorId?: string | null, category?: string | null): LucideIcon {
-  if (connectorId && ICON_BY_CONNECTOR_ID[connectorId]) return ICON_BY_CONNECTOR_ID[connectorId];
-  return CATEGORY_ICON[(category as ConnectorCategory) ?? "Database"] ?? Database;
+export function iconFor(connectorId?: string | null): LucideIcon {
+  return (connectorId && CONNECTOR_ICON[connectorId]) || Database;
 }
 
 export const SENSITIVITY_STYLE: Record<string, string> = {

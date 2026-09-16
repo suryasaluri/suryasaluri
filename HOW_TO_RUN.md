@@ -4,10 +4,10 @@ FETLA platform (Find · Extract · Transform · Load · Analyze) with the NEXUS 
 
 ## What's inside
 - `src/` — the web app: pages, app shell, AI copilot, charts, styling tokens
-- `services/find-service/` — standalone microservice for the Find phase (data source
-  discovery/onboarding). Its own `package.json`; a real HTTP API any system (ERP, CRM,
-  scripts, other internal tools) can call, not just this frontend. See
-  `services/find-service/README.md`.
+- `services/find-service/` — standalone microservice for the Find phase: schema &
+  relationship intelligence for a database your team already knows (Oracle-first).
+  Its own `package.json`; a real HTTP API any system (ERP, CRM, scripts, other
+  internal tools) can call, not just this frontend. See `services/find-service/README.md`.
 - `supabase/` — database migrations (tables, row-level security, grants, signup trigger)
 - config files — package manifest, build config, TypeScript, linting, formatting
 
@@ -54,20 +54,24 @@ Supabase project.
    - `PORT` (default `4001`)
    - `CORS_ORIGIN` — the web app's origin, must match exactly (default
      `http://localhost:8080`)
+   - `ANTHROPIC_API_KEY` — optional, enables the AI functional-narrative half of
+     generated documentation. The deterministic technical doc works without it.
 3. `bun run dev`
 
-Once both are running, sign in, then `/app/find` should load the discovery UI for
-real — scans, the Add Source dialog, and the source list all talk to this service.
+Once both are running, sign in, then `/app/find` should load for real — register an
+Oracle connection (host, port, service name, username, password), crawl its schema,
+and browse the Schema / Relationships / Status fields / Documentation tabs, all
+talking to this service.
 
 The frontend authenticates to the service by forwarding the user's Supabase access
 token as a bearer token — no separate login needed. `GET /connectors` and
 `POST /connectors/:id/test` are intentionally public (no auth), so other systems can
 query the catalog or dry-run a connection without a Nexus Command session.
 
-Ten of the twenty connectors (Stripe, HubSpot, Zendesk, Databricks, AWS S3/Kinesis,
-Google Cloud Storage/BigQuery, Azure Blob, Salesforce) make real HTTP/SDK/OAuth calls
-to the actual vendor APIs when given real credentials. The other ten (the raw-TCP
-databases, Snowflake/Redshift, Kafka, Workday) are simulated behind the same interface.
+Find connects to a database your team already knows and exposes — it no longer scans
+for unknown sources. Scope today is Oracle / Oracle Fusion only (real connectivity via
+`oracledb`'s Thin mode — no Oracle Instant Client needed), architected so another
+database type is a new connector module away, not a rewrite.
 
 ## Notes
 - `src/routeTree.gen.ts` is generated automatically — do not edit it by hand.
