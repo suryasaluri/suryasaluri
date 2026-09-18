@@ -1,5 +1,5 @@
 import type { SchemaConnectorModule } from "../types";
-import { oracleTestConnection, oracleIntrospectSchema } from "./client";
+import { oracleTestConnection, oracleIntrospectSchema, oracleEstimateQueryCost, oracleRunQuery } from "./client";
 
 export const oracleConnector: SchemaConnectorModule = {
   meta: {
@@ -18,4 +18,6 @@ export const oracleConnector: SchemaConnectorModule = {
   },
   testConnection: oracleTestConnection,
   introspectSchema: oracleIntrospectSchema,
+  estimateQueryCost: oracleEstimateQueryCost,
+  runQuery: oracleRunQuery,
 };

@@ -91,10 +91,68 @@ export type DocumentationSnapshot = {
   generated_at: string;
 };
 
+export type DomainClassification = {
+  domain: string;
+  confidence: number;
+  rationale: string;
+  table_domains: Record<string, string>;
+  signals: { tables: string[]; columns: string[]; values: string[] };
+  generated_at: string;
+};
+export type DomainUnavailable = { unavailable: true; reason: string };
+
+export type ReportFilter = { name: string; column: string; type: "date_range" | "categorical" };
+export type ReportTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  baseTable: string;
+  joinTable?: string;
+  groupBy: string;
+  aggregation: "count" | "avg" | "sum";
+  aggregationColumn?: string;
+  filters: ReportFilter[];
+};
+
+export type ValidationError = { field: string; reason: string; suggestions: string[] };
+export type CostEstimate = { cost: number; cardinality: number; blocked: boolean };
+export type ReportRow = Record<string, unknown>;
+export type ReportOutcome =
+  | { status: "validation_error"; input?: string; errors: ValidationError[] }
+  | { status: "blocked"; input?: string; sql: string; binds: Record<string, unknown>; estimate: CostEstimate }
+  | {
+      status: "success";
+      input?: string;
+      sql: string;
+      binds: Record<string, unknown>;
+      estimate: CostEstimate;
+      cached: boolean;
+      rows: ReportRow[];
+      latencyMs: number;
+    };
+
+export type UsageBucket = { totalEvents: number; byAction: { action: string; count: number }[]; recent: { action: string; createdAt: string }[] };
+export type UsageResponse = { total: UsageBucket; session: UsageBucket; sessionId: string | null };
+
+/** Per-browser-tab id, for the usage report's total-vs-session split. Never used for auth. */
+function getSessionId(): string {
+  try {
+    const key = "nexus_find_session_id";
+    let id = sessionStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return "unknown-session";
+  }
+}
+
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), "X-Session-Id": getSessionId() };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -135,6 +193,18 @@ export const findApi = {
   getDocumentation: (connectionId: string) => request<DocumentationSnapshot>(`/connections/${connectionId}/documentation`),
   regenerateDocumentation: (connectionId: string) =>
     request<DocumentationSnapshot>(`/connections/${connectionId}/documentation/regenerate`, { method: "POST" }),
+
+  getDomain: (connectionId: string) => request<DomainClassification | DomainUnavailable>(`/connections/${connectionId}/domain`),
+  regenerateDomain: (connectionId: string) =>
+    request<DomainClassification | DomainUnavailable>(`/connections/${connectionId}/domain/regenerate`, { method: "POST" }),
+
+  getReportSuggestions: (connectionId: string) => request<ReportTemplate[]>(`/connections/${connectionId}/reports/suggestions`),
+  runReport: (connectionId: string, body: { templateId: string; fields: Record<string, string>; filterValues?: Record<string, string> }) =>
+    request<ReportOutcome>(`/connections/${connectionId}/reports/run`, { method: "POST", body: JSON.stringify(body) }),
+  runCustomReport: (connectionId: string, body: { text: string; fields: Record<string, string> }) =>
+    request<ReportOutcome>(`/connections/${connectionId}/reports/custom`, { method: "POST", body: JSON.stringify(body) }),
+
+  getUsage: () => request<UsageResponse>("/usage"),
 };
 
 type CrawlStreamHandlers = {

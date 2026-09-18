@@ -17,10 +17,13 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import {
   Plus, Loader2, Trash2, RefreshCw, ChevronDown, Table2, Waypoints, Tags,
-  FileText, Sparkles, Plug, ShieldCheck,
+  FileText, Sparkles, Plug, ShieldCheck, Brain, BarChart3, Play, Gauge, Ban, Send,
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
-import { findApi, streamCrawl, type ConnectionRecord, type TableDef } from "@/lib/findApiClient";
+import {
+  findApi, streamCrawl, type ConnectionRecord, type TableDef,
+  type ReportTemplate, type ReportOutcome, type CostEstimate,
+} from "@/lib/findApiClient";
 
 export const Route = createFileRoute("/_authenticated/app/find")({
   component: FindPage,
@@ -45,8 +48,81 @@ function labels(json: unknown): string[] {
   return Array.isArray(json) ? (json as string[]) : [];
 }
 
-/** The credential fields a fresh test/crawl needs — password is never stored, so every re-test or crawl asks for it again. */
-type CredentialAction = { connectionId: string; kind: "test" | "crawl" };
+/** The credential fields a fresh test/crawl/report run needs — password is never stored, so every action asks for it again. */
+type CredentialActionInput =
+  | { kind: "test" }
+  | { kind: "crawl" }
+  | { kind: "run"; template: ReportTemplate }
+  | { kind: "custom"; text: string };
+type CredentialAction = CredentialActionInput & { connectionId: string };
+
+function CostPanel({ estimate, cached, latencyMs }: { estimate: CostEstimate; cached: boolean; latencyMs?: number }) {
+  if (estimate.blocked) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2.5 text-xs">
+        <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+        <div>
+          <span className="font-medium text-destructive">Blocked by cost cap</span> — dry-run estimate (cost {estimate.cost.toLocaleString()}, ~{estimate.cardinality.toLocaleString()} rows) exceeds the configured threshold. Query was not executed.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
+      <Gauge className="h-3.5 w-3.5 shrink-0 text-primary" />
+      {cached ? (
+        <span><span className="font-medium text-primary">Cache hit</span> · 0 rows scanned · served from the last 24h</span>
+      ) : (
+        <span><span className="font-medium text-foreground">Live query</span> · ~{latencyMs ?? 0}ms · dry-run cost {estimate.cost.toLocaleString()}, ~{estimate.cardinality.toLocaleString()} est. rows</span>
+      )}
+    </div>
+  );
+}
+
+function ReportResultView({ outcome }: { outcome: ReportOutcome }) {
+  if (outcome.status === "validation_error") {
+    return (
+      <div className="space-y-1.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-xs">
+        <div className="font-medium text-destructive">Validation failed — nothing was sent to the database</div>
+        {outcome.errors.map((e, i) => (
+          <div key={i} className="text-muted-foreground">
+            <span className="font-mono text-destructive">{e.field}</span> — {e.reason}
+            {e.suggestions.length > 0 && <> Did you mean: {e.suggestions.map((s) => <span key={s} className="font-mono text-primary"> {s}</span>)}?</>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  const rows = outcome.status === "success" ? outcome.rows : [];
+  const max = Math.max(1, ...rows.map((r) => Number(r.agg_value) || 0));
+  return (
+    <div className="space-y-3">
+      <pre className="overflow-x-auto rounded-lg bg-secondary/40 p-3 font-mono text-[11px] text-muted-foreground">{outcome.sql}</pre>
+      <CostPanel estimate={outcome.estimate} cached={outcome.status === "success" && outcome.cached} latencyMs={outcome.status === "success" ? outcome.latencyMs : undefined} />
+      {outcome.status === "success" && (
+        rows.length === 0 ? (
+          <div className="py-4 text-center text-xs text-muted-foreground">No rows returned.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {rows.map((r, i) => {
+              const value = Number(r.agg_value) || 0;
+              const pct = Math.max(2, Math.round((value / max) * 100));
+              return (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <div className="w-28 shrink-0 truncate text-muted-foreground">{String(r.group_value)}</div>
+                  <div className="h-4 flex-1 overflow-hidden rounded bg-secondary/40">
+                    <div className="h-full rounded bg-primary/70" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="w-20 shrink-0 text-right font-mono">{value.toLocaleString()}</div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
 
 function FindPage() {
   const qc = useQueryClient();
@@ -104,16 +180,18 @@ function FindPage() {
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
-  // --- re-test / crawl credential prompt (password is never persisted) ---
+  // --- re-test / crawl / report-run credential prompt (password is never persisted) ---
   const [credentialAction, setCredentialAction] = useState<CredentialAction | null>(null);
   const [credentialFields, setCredentialFields] = useState<Record<string, string>>({});
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
-  function openCredentialPrompt(conn: ConnectionRecord, kind: "test" | "crawl") {
-    setCredentialAction({ connectionId: conn.id, kind });
+  function openCredentialPrompt(conn: ConnectionRecord, action: CredentialActionInput) {
+    setCredentialAction({ connectionId: conn.id, ...action } as CredentialAction);
     setCredentialFields({
       host: conn.host ?? "", port: conn.port ? String(conn.port) : "", serviceName: conn.service_name ?? "",
       username: conn.username ?? "", password: "",
     });
+    setFilterValues({});
   }
 
   const retest = useMutation({
@@ -150,11 +228,61 @@ function FindPage() {
   });
   const crawlPending = crawl.isPending;
 
+  // --- domain classification ---
+  const { data: domain, isLoading: domainLoading } = useQuery({
+    queryKey: ["domain", activeId],
+    queryFn: () => findApi.getDomain(activeId!),
+    enabled: !!activeId && tab === "domain",
+  });
+  const regenerateDomain = useMutation({
+    mutationFn: () => findApi.regenerateDomain(activeId!),
+    onSuccess: (data) => { qc.setQueryData(["domain", activeId], data); toast.success("Domain classification " + ("unavailable" in data ? "unavailable" : "regenerated")); },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
+  // --- reports: suggestions + running (suggested or custom) ---
+  const { data: reportSuggestions } = useQuery({
+    queryKey: ["reportSuggestions", activeId],
+    queryFn: () => findApi.getReportSuggestions(activeId!),
+    enabled: !!activeId && tab === "reports",
+  });
+  const [reportOutcomes, setReportOutcomes] = useState<Record<string, ReportOutcome>>({});
+  const [customText, setCustomText] = useState("");
+  const [customOutcome, setCustomOutcome] = useState<ReportOutcome | null>(null);
+
+  const runReport = useMutation({
+    mutationFn: (vars: { id: string; templateId: string; fields: Record<string, string>; filterValues: Record<string, string> }) =>
+      findApi.runReport(vars.id, { templateId: vars.templateId, fields: vars.fields, filterValues: vars.filterValues }),
+    onSuccess: (outcome, vars) => {
+      setReportOutcomes((prev) => ({ ...prev, [vars.templateId]: outcome }));
+      setCredentialAction(null);
+      if (outcome.status === "blocked") toast.warning("Blocked by cost cap — see the report card for detail");
+      else if (outcome.status === "validation_error") toast.error("Validation failed — see the report card for detail");
+      else toast.success(outcome.cached ? "Served from cache" : "Report ran");
+    },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
+  const runCustom = useMutation({
+    mutationFn: (vars: { id: string; text: string; fields: Record<string, string> }) => findApi.runCustomReport(vars.id, { text: vars.text, fields: vars.fields }),
+    onSuccess: (outcome) => {
+      setCustomOutcome(outcome);
+      setCredentialAction(null);
+      if (outcome.status === "blocked") toast.warning("Blocked by cost cap");
+      else if (outcome.status === "validation_error") toast.error("Couldn't build a safe query from that request");
+      else toast.success(outcome.cached ? "Served from cache" : "Report generated");
+    },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
   function submitCredentialPrompt() {
     if (!credentialAction) return;
     if (credentialAction.kind === "test") retest.mutate({ id: credentialAction.connectionId, fields: credentialFields });
-    else crawl.mutate({ id: credentialAction.connectionId, fields: credentialFields });
+    else if (credentialAction.kind === "crawl") crawl.mutate({ id: credentialAction.connectionId, fields: credentialFields });
+    else if (credentialAction.kind === "run") runReport.mutate({ id: credentialAction.connectionId, templateId: credentialAction.template.id, fields: credentialFields, filterValues });
+    else runCustom.mutate({ id: credentialAction.connectionId, text: credentialAction.text, fields: credentialFields });
   }
+  const credentialPending = retest.isPending || crawlPending || runReport.isPending || runCustom.isPending;
 
   // --- schema / documentation for the active connection ---
   const { data: schema } = useQuery({
@@ -265,10 +393,10 @@ function FindPage() {
                         </div>
                       </div>
                     </button>
-                    <Button size="sm" variant="outline" onClick={() => openCredentialPrompt(c, "test")}>
+                    <Button size="sm" variant="outline" onClick={() => openCredentialPrompt(c, { kind: "test" })}>
                       <ShieldCheck className="mr-2 h-3 w-3" /> Re-test
                     </Button>
-                    <Button size="sm" className="bg-primary text-primary-foreground" onClick={() => openCredentialPrompt(c, "crawl")}>
+                    <Button size="sm" className="bg-primary text-primary-foreground" onClick={() => openCredentialPrompt(c, { kind: "crawl" })}>
                       <RefreshCw className="mr-2 h-3 w-3" /> Crawl schema
                     </Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteId(c.id)}>
@@ -310,10 +438,12 @@ function FindPage() {
               <div className="p-10 text-center text-sm text-muted-foreground">No schema yet — click "Crawl schema" above to introspect this connection.</div>
             ) : (
               <Tabs value={tab} onValueChange={setTab}>
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="schema"><Table2 className="mr-1.5 h-3.5 w-3.5" />Schema</TabsTrigger>
                   <TabsTrigger value="relationships"><Waypoints className="mr-1.5 h-3.5 w-3.5" />Relationships</TabsTrigger>
                   <TabsTrigger value="status"><Tags className="mr-1.5 h-3.5 w-3.5" />Status fields</TabsTrigger>
+                  <TabsTrigger value="domain"><Brain className="mr-1.5 h-3.5 w-3.5" />Domain</TabsTrigger>
+                  <TabsTrigger value="reports"><BarChart3 className="mr-1.5 h-3.5 w-3.5" />Reports</TabsTrigger>
                   <TabsTrigger value="documentation"><FileText className="mr-1.5 h-3.5 w-3.5" />Documentation</TabsTrigger>
                 </TabsList>
 
@@ -400,6 +530,100 @@ function FindPage() {
                   ))}
                 </TabsContent>
 
+                <TabsContent value="domain" className="space-y-4">
+                  {domainLoading ? (
+                    <div className="p-6 text-center text-sm text-muted-foreground">Classifying domain…</div>
+                  ) : !domain || "unavailable" in domain ? (
+                    <div className="space-y-3 p-6 text-center text-sm text-muted-foreground">
+                      <div>{domain && "reason" in domain ? domain.reason : "No classification yet."}</div>
+                      <Button size="sm" variant="outline" onClick={() => regenerateDomain.mutate()} disabled={regenerateDomain.isPending}>
+                        {regenerateDomain.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Brain className="mr-2 h-3 w-3" />} Classify domain
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5">
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-display text-2xl font-bold capitalize">{domain.domain.replace(/_/g, " ")}</span>
+                            <span className="font-mono text-sm text-muted-foreground">{Math.round(domain.confidence * 100)}% confidence</span>
+                          </div>
+                          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{domain.rationale}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => regenerateDomain.mutate()} disabled={regenerateDomain.isPending}>
+                          {regenerateDomain.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                        </Button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-lg border border-border p-4">
+                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Per-table tags</div>
+                          <div className="space-y-1.5">
+                            {Object.entries(domain.table_domains).map(([table, tag]) => (
+                              <div key={table} className="flex items-center justify-between font-mono text-xs">
+                                <span>{table}</span>
+                                <Badge variant="outline" className={/system/i.test(tag) ? "text-muted-foreground" : "border-primary/40 text-primary"}>{tag}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-border p-4">
+                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Signals</div>
+                          <div className="space-y-2 text-xs">
+                            <div><span className="text-muted-foreground">Tables: </span>{domain.signals.tables.join(", ") || "—"}</div>
+                            <div><span className="text-muted-foreground">Columns: </span>{domain.signals.columns.join(", ") || "—"}</div>
+                            {domain.signals.values.map((v, i) => <div key={i} className="text-muted-foreground">{v}</div>)}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="reports" className="space-y-4">
+                  <div className="rounded-xl border border-border p-5">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h4 className="font-medium">Ask for a report</h4>
+                      <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">AI-parsed</Badge>
+                    </div>
+                    <p className="mb-3 text-xs text-muted-foreground">Describe what you want in plain language — every field is checked against the real schema before any SQL runs.</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={customText}
+                        onChange={(e) => setCustomText(e.target.value)}
+                        placeholder="e.g. active properties by city"
+                        onKeyDown={(e) => e.key === "Enter" && customText.trim() && active && openCredentialPrompt(active, { kind: "custom", text: customText })}
+                      />
+                      <Button
+                        disabled={!customText.trim()}
+                        onClick={() => active && openCredentialPrompt(active, { kind: "custom", text: customText })}
+                      >
+                        <Send className="mr-2 h-3.5 w-3.5" /> Generate
+                      </Button>
+                    </div>
+                    {customOutcome && <div className="mt-4"><ReportResultView outcome={customOutcome} /></div>}
+                  </div>
+
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Suggested reports</div>
+                  {!reportSuggestions?.length ? (
+                    <div className="p-6 text-center text-sm text-muted-foreground">No report candidates found for this schema yet.</div>
+                  ) : (
+                    reportSuggestions.map((t) => (
+                      <div key={t.id} className="rounded-xl border border-border p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium">{t.name}</div>
+                            <div className="text-xs text-muted-foreground">{t.description}</div>
+                          </div>
+                          <Button size="sm" onClick={() => active && openCredentialPrompt(active, { kind: "run", template: t })}>
+                            <Play className="mr-2 h-3 w-3" /> Run
+                          </Button>
+                        </div>
+                        {reportOutcomes[t.id] && <div className="mt-4"><ReportResultView outcome={reportOutcomes[t.id]} /></div>}
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
                 <TabsContent value="documentation" className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">{documentation ? `Generated ${new Date(documentation.generated_at).toLocaleString()}` : ""}</div>
@@ -434,14 +658,22 @@ function FindPage() {
         )}
       </div>
 
-      {/* Credential prompt for re-test / crawl (password is never persisted) */}
+      {/* Credential prompt for re-test / crawl / report run (password is never persisted) */}
       <Dialog open={!!credentialAction} onOpenChange={(o) => !o && setCredentialAction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{credentialAction?.kind === "crawl" ? "Crawl schema" : "Re-test connection"}</DialogTitle>
-            <DialogDescription>Credentials aren't stored — confirm them to {credentialAction?.kind === "crawl" ? "start this crawl" : "re-test this connection"}.</DialogDescription>
+            <DialogTitle>
+              {credentialAction?.kind === "crawl" && "Crawl schema"}
+              {credentialAction?.kind === "test" && "Re-test connection"}
+              {credentialAction?.kind === "run" && `Run "${credentialAction.template.name}"`}
+              {credentialAction?.kind === "custom" && "Run custom report"}
+            </DialogTitle>
+            <DialogDescription>Credentials aren't stored — confirm them to proceed.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {credentialAction?.kind === "custom" && (
+              <div className="rounded-lg bg-secondary/30 px-3 py-2 text-xs italic text-muted-foreground">“{credentialAction.text}”</div>
+            )}
             {connector?.fields.map((f) => (
               <div key={f.key}>
                 <Label>{f.label}</Label>
@@ -452,11 +684,36 @@ function FindPage() {
                 />
               </div>
             ))}
+            {credentialAction?.kind === "run" && credentialAction.template.filters.map((f) => (
+              f.type === "categorical" ? (
+                <div key={f.name}>
+                  <Label className="capitalize">{f.name.replace(/_/g, " ")}</Label>
+                  <Input
+                    placeholder="leave blank for no filter"
+                    value={filterValues[f.name] ?? ""}
+                    onChange={(e) => setFilterValues({ ...filterValues, [f.name]: e.target.value })}
+                  />
+                </div>
+              ) : (
+                <div key={f.name} className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="capitalize">{f.name.replace(/_/g, " ")} since</Label>
+                    <Input type="date" value={filterValues[`${f.name}_since`] ?? ""} onChange={(e) => setFilterValues({ ...filterValues, [`${f.name}_since`]: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="capitalize">{f.name.replace(/_/g, " ")} until</Label>
+                    <Input type="date" value={filterValues[`${f.name}_until`] ?? ""} onChange={(e) => setFilterValues({ ...filterValues, [`${f.name}_until`]: e.target.value })} />
+                  </div>
+                </div>
+              )
+            ))}
           </div>
           <DialogFooter>
-            <Button onClick={submitCredentialPrompt} disabled={retest.isPending || crawlPending}>
-              {(retest.isPending || crawlPending) ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plug className="mr-2 h-3 w-3" />}
-              {credentialAction?.kind === "crawl" ? "Start crawl" : "Test"}
+            <Button onClick={submitCredentialPrompt} disabled={credentialPending}>
+              {credentialPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plug className="mr-2 h-3 w-3" />}
+              {credentialAction?.kind === "crawl" && "Start crawl"}
+              {credentialAction?.kind === "test" && "Test"}
+              {(credentialAction?.kind === "run" || credentialAction?.kind === "custom") && "Run"}
             </Button>
           </DialogFooter>
         </DialogContent>

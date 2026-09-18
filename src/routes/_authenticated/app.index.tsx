@@ -3,8 +3,10 @@ import { PageHeader } from "@/components/AppShell";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/lib/useOrg";
-import { Search, Download, Wand2, Upload, BarChart3, ArrowRight, Activity, Database, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, Download, Wand2, Upload, BarChart3, ArrowRight, Activity, Database, CheckCircle2, AlertCircle, History } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { findApi, type UsageBucket } from "@/lib/findApiClient";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   component: Overview,
@@ -16,8 +18,39 @@ const trend = Array.from({ length: 14 }, (_, i) => ({
   jobs: 6 + Math.round(Math.random() * 4),
 }));
 
+function UsageColumn({ title, bucket, accent }: { title: string; bucket?: UsageBucket; accent: boolean }) {
+  const max = bucket?.byAction[0]?.count || 1;
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between">
+        <h4 className="text-sm font-medium">{title}</h4>
+        <span className={`font-display text-xl font-bold ${accent ? "text-primary" : ""}`}>{bucket?.totalEvents ?? 0}</span>
+      </div>
+      {!bucket?.byAction.length ? (
+        <div className="text-xs text-muted-foreground">No activity yet.</div>
+      ) : (
+        <div className="space-y-1.5">
+          {bucket.byAction.map((a) => {
+            const pct = Math.max(4, Math.round((a.count / max) * 100));
+            return (
+              <div key={a.action} className="flex items-center gap-2 text-xs">
+                <div className="w-28 shrink-0 truncate font-mono text-muted-foreground">{a.action}</div>
+                <div className="h-3 flex-1 overflow-hidden rounded bg-secondary/40">
+                  <div className={`h-full rounded ${accent ? "bg-primary" : "bg-primary/50"}`} style={{ width: `${pct}%` }} />
+                </div>
+                <div className="w-6 shrink-0 text-right font-mono">{a.count}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Overview() {
   const { data: org } = useOrg();
+  const { data: usage } = useQuery({ queryKey: ["findUsage"], queryFn: findApi.getUsage, enabled: !!org?.id });
   const { data: counts } = useQuery({
     queryKey: ["counts", org?.id],
     enabled: !!org?.id,
@@ -68,6 +101,48 @@ function Overview() {
             </div>
           ))}
         </div>
+
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="w-full rounded-xl border border-border bg-card-gradient p-6 text-left transition hover:border-primary/60 hover:shadow-glow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Usage report</div>
+                  <h3 className="font-display text-lg font-semibold">Platform activity</h3>
+                </div>
+                <History className="h-5 w-5 text-primary" />
+              </div>
+              <div className="mt-4 flex items-end gap-8">
+                <div>
+                  <div className="font-display text-3xl font-bold">{usage?.total.totalEvents ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">total events</div>
+                </div>
+                <div>
+                  <div className="font-display text-3xl font-bold text-primary">{usage?.session.totalEvents ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">this session</div>
+                </div>
+              </div>
+              {(usage?.total.byAction.length ?? 0) > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {usage!.total.byAction.slice(0, 4).map((a) => (
+                    <span key={a.action} className="rounded-full bg-secondary/40 px-2.5 py-1 font-mono text-[10px] text-muted-foreground">{a.action} · {a.count}</span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 text-xs text-primary">Click for the full report →</div>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Usage report</DialogTitle>
+              <DialogDescription>Every Find action — connections, crawls, domain classification, documentation, and report runs — recorded as it happens.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 md:grid-cols-2">
+              <UsageColumn title="Total usage" bucket={usage?.total} accent={false} />
+              <UsageColumn title="This session" bucket={usage?.session} accent />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-xl border border-border bg-card-gradient p-6 lg:col-span-2">

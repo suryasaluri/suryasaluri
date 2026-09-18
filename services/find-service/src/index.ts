@@ -5,6 +5,9 @@ import { registerConnectionRoutes } from "./routes/connections";
 import { registerCrawlRoutes } from "./routes/crawls";
 import { registerSchemaRoutes } from "./routes/schema";
 import { registerDocumentationRoutes } from "./routes/documentation";
+import { registerDomainRoutes } from "./routes/domain";
+import { registerReportRoutes } from "./routes/reports";
+import { registerUsageRoutes } from "./routes/usage";
 
 const app = Fastify({ logger: true });
 
@@ -23,6 +26,9 @@ app.register(async (instance) => registerConnectionRoutes(instance));
 app.register(async (instance) => registerCrawlRoutes(instance));
 app.register(async (instance) => registerSchemaRoutes(instance));
 app.register(async (instance) => registerDocumentationRoutes(instance));
+app.register(async (instance) => registerDomainRoutes(instance));
+app.register(async (instance) => registerReportRoutes(instance));
+app.register(async (instance) => registerUsageRoutes(instance));
 
 const port = Number(process.env.PORT ?? 4001);
 app

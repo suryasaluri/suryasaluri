@@ -24,6 +24,7 @@ export type Database = {
           org_id: string
           resource_id: string | null
           resource_type: string | null
+          session_id: string | null
         }
         Insert: {
           action: string
@@ -34,6 +35,7 @@ export type Database = {
           org_id: string
           resource_id?: string | null
           resource_type?: string | null
+          session_id?: string | null
         }
         Update: {
           action?: string
@@ -44,6 +46,7 @@ export type Database = {
           org_id?: string
           resource_id?: string | null
           resource_type?: string | null
+          session_id?: string | null
         }
         Relationships: [
           {
@@ -137,6 +140,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "data_sources_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      domain_classifications: {
+        Row: {
+          confidence: number
+          created_at: string
+          data_source_id: string
+          domain: string
+          generated_at: string
+          id: string
+          org_id: string
+          rationale: string
+          signals: Json
+          table_domains: Json
+        }
+        Insert: {
+          confidence: number
+          created_at?: string
+          data_source_id: string
+          domain: string
+          generated_at?: string
+          id?: string
+          org_id: string
+          rationale: string
+          signals?: Json
+          table_domains?: Json
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          data_source_id?: string
+          domain?: string
+          generated_at?: string
+          id?: string
+          org_id?: string
+          rationale?: string
+          signals?: Json
+          table_domains?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_classifications_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domain_classifications_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"

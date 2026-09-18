@@ -37,7 +37,7 @@ async function persistSchemaObjects(orgId: string, dataSourceId: string, schema:
   if (error) throw error;
 }
 
-async function runCrawl(orgId: string, dataSourceId: string, crawlId: string, connectorId: string, fields: Record<string, string>) {
+async function runCrawl(orgId: string, dataSourceId: string, crawlId: string, connectorId: string, fields: Record<string, string>, sessionId?: string) {
   const emitter = emitterFor(crawlId);
   const connector = getConnector(connectorId);
   if (!connector) {
@@ -73,6 +73,7 @@ async function runCrawl(orgId: string, dataSourceId: string, crawlId: string, co
 
     await supabaseAdmin().from("audit_logs").insert({
       org_id: orgId,
+      session_id: sessionId ?? null,
       action: "crawl.completed",
       resource_type: "schema_crawl",
       resource_id: crawlId,
@@ -108,7 +109,7 @@ export function registerCrawlRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string }; Body: unknown }>("/connections/:id/crawl", async (request, reply) => {
-    const { orgId } = request as AuthedRequest;
+    const { orgId, sessionId } = request as AuthedRequest;
     const { id } = request.params;
     const parsed = startSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -128,7 +129,7 @@ export function registerCrawlRoutes(app: FastifyInstance) {
       .single();
     if (error) throw error;
 
-    runCrawl(orgId, id, crawlRow.id, src.connector_id, parsed.data.fields).catch((e) => app.log.error(e, "crawl failed"));
+    runCrawl(orgId, id, crawlRow.id, src.connector_id, parsed.data.fields, sessionId).catch((e) => app.log.error(e, "crawl failed"));
 
     reply.code(202);
     return { id: crawlRow.id, status: "running" };

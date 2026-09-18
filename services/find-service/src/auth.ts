@@ -4,6 +4,8 @@ import { supabaseAdmin } from "./supabaseAdmin";
 export type AuthedRequest = FastifyRequest & {
   orgId: string;
   userId: string;
+  /** Per-browser-tab id the frontend sends via X-Session-Id, for the usage report's total-vs-session split. Never used for authorization. */
+  sessionId?: string;
 };
 
 /**
@@ -37,4 +39,6 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 
   (request as AuthedRequest).orgId = org.id as string;
   (request as AuthedRequest).userId = userData.user.id;
+  const sessionHeader = request.headers["x-session-id"];
+  (request as AuthedRequest).sessionId = typeof sessionHeader === "string" ? sessionHeader : undefined;
 }

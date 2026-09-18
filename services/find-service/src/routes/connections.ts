@@ -24,8 +24,17 @@ function statusFromTestResult(ok: boolean, message: string): "connected" | "auth
   return /authentication failed/i.test(message) ? "auth_required" : "unreachable";
 }
 
-async function writeAudit(orgId: string, action: string, resourceType: string, resourceId: string | null, details: Record<string, unknown>) {
-  await supabaseAdmin().from("audit_logs").insert({ org_id: orgId, action, resource_type: resourceType, resource_id: resourceId, details });
+async function writeAudit(
+  orgId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  details: Record<string, unknown>,
+  sessionId?: string,
+) {
+  await supabaseAdmin()
+    .from("audit_logs")
+    .insert({ org_id: orgId, session_id: sessionId ?? null, action, resource_type: resourceType, resource_id: resourceId, details });
 }
 
 export function registerConnectionRoutes(app: FastifyInstance) {
@@ -39,7 +48,7 @@ export function registerConnectionRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: unknown }>("/connections", async (request, reply) => {
-    const { orgId } = request as AuthedRequest;
+    const { orgId, sessionId } = request as AuthedRequest;
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400).send({ error: parsed.error.message });
@@ -79,13 +88,13 @@ export function registerConnectionRoutes(app: FastifyInstance) {
       .single();
     if (error) throw error;
 
-    await writeAudit(orgId, "connection.registered", "data_source", data.id, { connector: connectorId, status, test_message: result.message });
+    await writeAudit(orgId, "connection.registered", "data_source", data.id, { connector: connectorId, status, test_message: result.message }, sessionId);
     reply.code(201);
     return data;
   });
 
   app.post<{ Params: { id: string }; Body: unknown }>("/connections/:id/test", async (request, reply) => {
-    const { orgId } = request as AuthedRequest;
+    const { orgId, sessionId } = request as AuthedRequest;
     const { id } = request.params;
     const parsed = testSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -113,17 +122,17 @@ export function registerConnectionRoutes(app: FastifyInstance) {
       .single();
     if (error) throw error;
 
-    await writeAudit(orgId, "connection.tested", "data_source", id, { status, test_message: result.message });
+    await writeAudit(orgId, "connection.tested", "data_source", id, { status, test_message: result.message }, sessionId);
     return data;
   });
 
   app.delete<{ Params: { id: string } }>("/connections/:id", async (request, reply) => {
-    const { orgId } = request as AuthedRequest;
+    const { orgId, sessionId } = request as AuthedRequest;
     const { id } = request.params;
     const { data: src } = await supabaseAdmin().from("data_sources").select("name").eq("id", id).eq("org_id", orgId).single();
     const { error } = await supabaseAdmin().from("data_sources").delete().eq("id", id).eq("org_id", orgId);
     if (error) throw error;
-    await writeAudit(orgId, "connection.deleted", "data_source", id, { name: src?.name });
+    await writeAudit(orgId, "connection.deleted", "data_source", id, { name: src?.name }, sessionId);
     reply.code(204);
   });
 }

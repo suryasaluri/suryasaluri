@@ -55,16 +55,24 @@ Supabase project.
    - `CORS_ORIGIN` — the web app's origin, must match exactly (default
      `http://localhost:8080`)
    - `ANTHROPIC_API_KEY` — optional, enables the AI functional-narrative half of
-     generated documentation. The deterministic technical doc works without it.
+     generated documentation, domain classification, and natural-language report
+     requests. The deterministic technical doc and suggested (template) reports work
+     without it.
+   - `REPORT_MAX_COST` / `REPORT_MAX_CARDINALITY` — optional, the dry-run thresholds a
+     generated report query is checked against before it's allowed to run (defaults
+     `10000` / `1000000`). See "Reports & cost controls" below.
 3. `bun run dev`
 
 Once both are running, sign in, then `/app/find` should load for real — register an
 Oracle connection (host, port, service name, username, password), crawl its schema,
-and browse the Schema / Relationships / Status fields / Documentation tabs, all
-talking to this service.
+and browse the Schema / Relationships / Status fields / Domain / Reports /
+Documentation tabs, all talking to this service. The home page (`/app`) shows a
+"Platform activity" usage report card — click it for total-usage-vs-this-session
+breakdowns, sourced from the service's own audit log.
 
 The frontend authenticates to the service by forwarding the user's Supabase access
-token as a bearer token — no separate login needed. `GET /connectors` and
+token as a bearer token — no separate login needed — plus a per-tab `X-Session-Id`
+header the usage report uses for its "this session" split. `GET /connectors` and
 `POST /connectors/:id/test` are intentionally public (no auth), so other systems can
 query the catalog or dry-run a connection without a Nexus Command session.
 
@@ -72,6 +80,38 @@ Find connects to a database your team already knows and exposes — it no longer
 for unknown sources. Scope today is Oracle / Oracle Fusion only (real connectivity via
 `oracledb`'s Thin mode — no Oracle Instant Client needed), architected so another
 database type is a new connector module away, not a rewrite.
+
+#### Domain classification
+
+Once a connection has a crawled schema, the **Domain** tab classifies it — a
+business-domain label (e.g. `real_estate`) with a confidence score and a rationale,
+plus a per-table tag (`real_estate:core` vs `system`) so generic tables like an audit
+log don't get forced under the main label or offered up as report candidates.
+Requires `ANTHROPIC_API_KEY`; without it the tab explains that plainly rather than
+failing.
+
+#### Reports & cost controls
+
+The **Reports** tab suggests report templates from the schema alone (no AI needed —
+joins from foreign keys, group-by candidates from string columns, aggregations from
+numeric ones), and a natural-language box drafts a report from a request like "active
+properties by city" via Claude, which is then validated against the real schema
+exactly like a suggested template — an LLM's output is never trusted directly into
+SQL. Three cost controls apply to every report run, suggested or custom:
+
+1. **Dry-run first** — the built SQL is `EXPLAIN PLAN`'d before it runs; a query whose
+   estimated cost/cardinality exceeds `REPORT_MAX_COST`/`REPORT_MAX_CARDINALITY` is
+   rejected before it's ever executed.
+2. **Hard caps** — the row cap is inlined into the SQL itself (`FETCH FIRST n ROWS
+   ONLY`) and the connection's `callTimeout` is set, so a runaway query can't outrun
+   either cap.
+3. **24h result cache** — an exact-match repeat query (same SQL + bind values) is
+   served from an in-memory cache instead of re-hitting Oracle.
+
+(This is Oracle's own mechanical equivalent of the `jobs.query dryRun` /
+`maximumBytesBilled` / query-cache trio BigQuery exposes natively — Oracle has no
+per-byte billing, so the caps are expressed in the optimizer's own cost/cardinality
+units instead of bytes.)
 
 ## Notes
 - `src/routeTree.gen.ts` is generated automatically — do not edit it by hand.
