@@ -1,6 +1,7 @@
 import { deriveRelationships, type NormalizedSchema } from "../schema/types";
 import type { StatusFieldCandidate } from "../schema/statusFields";
 import { classifyColumnSensitivity } from "../sensitivity";
+import { detectUnconstrainedReferences } from "../quality/dataQuality";
 
 /** Deterministic Markdown from the normalized schema — no external dependency, always available. */
 export function renderTechnicalMarkdown(schema: NormalizedSchema, statusFields: StatusFieldCandidate[]): string {
@@ -37,6 +38,16 @@ export function renderTechnicalMarkdown(schema: NormalizedSchema, statusFields: 
     for (const s of statusFields) {
       const values = s.candidateValues ? s.candidateValues.map((v) => `\`${v}\``).join(", ") : "flagged by name — values unconfirmed";
       lines.push(`- \`${s.table}.${s.column}\`: ${values}`);
+    }
+    lines.push("");
+  }
+
+  const unconstrainedRefs = detectUnconstrainedReferences(schema);
+  if (unconstrainedRefs.length) {
+    lines.push("## Naming & referential signals", "");
+    lines.push("Columns shaped like a reference to another table, but not backed by a declared foreign key:", "");
+    for (const r of unconstrainedRefs) {
+      lines.push(`- \`${r.table}.${r.column}\` looks like a reference to \`${r.likelyTargetTable}\`, with no FK constraint enforcing it.`);
     }
     lines.push("");
   }

@@ -18,8 +18,10 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Loader2, Trash2, RefreshCw, ChevronDown, Table2, Waypoints, Tags,
   FileText, Sparkles, Plug, ShieldCheck, Brain, BarChart3, Play, Gauge, Ban, Send,
+  BookOpen, Bot, Download, AlertTriangle, Link2Off,
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
+import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv } from "@/lib/exportDocs";
 import {
   findApi, streamCrawl, type ConnectionRecord, type TableDef,
   type ReportTemplate, type ReportOutcome, type CostEstimate,
@@ -79,7 +81,7 @@ function CostPanel({ estimate, cached, latencyMs }: { estimate: CostEstimate; ca
   );
 }
 
-function ReportResultView({ outcome }: { outcome: ReportOutcome }) {
+function ReportResultView({ outcome, filename }: { outcome: ReportOutcome; filename: string }) {
   if (outcome.status === "validation_error") {
     return (
       <div className="space-y-1.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-xs">
@@ -99,6 +101,11 @@ function ReportResultView({ outcome }: { outcome: ReportOutcome }) {
     <div className="space-y-3">
       <pre className="overflow-x-auto rounded-lg bg-secondary/40 p-3 font-mono text-[11px] text-muted-foreground">{outcome.sql}</pre>
       <CostPanel estimate={outcome.estimate} cached={outcome.status === "success" && outcome.cached} latencyMs={outcome.status === "success" ? outcome.latencyMs : undefined} />
+      {outcome.status === "success" && rows.length > 0 && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" onClick={() => downloadReportCsv(`${filename}.csv`, rows)}><Download className="mr-2 h-3 w-3" /> Download CSV</Button>
+        </div>
+      )}
       {outcome.status === "success" && (
         rows.length === 0 ? (
           <div className="py-4 text-center text-xs text-muted-foreground">No rows returned.</div>
@@ -240,6 +247,30 @@ function FindPage() {
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
+  // --- business glossary — the reconstructed "logic" layer ---
+  const { data: glossary, isLoading: glossaryLoading } = useQuery({
+    queryKey: ["glossary", activeId],
+    queryFn: () => findApi.getGlossary(activeId!),
+    enabled: !!activeId && tab === "glossary",
+  });
+  const regenerateGlossary = useMutation({
+    mutationFn: () => findApi.regenerateGlossary(activeId!),
+    onSuccess: (data) => { qc.setQueryData(["glossary", activeId], data); toast.success("Glossary " + ("unavailable" in data ? "unavailable" : "regenerated")); },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
+  // --- AI copilot: grounded schema/glossary/documentation Q&A, never runs SQL itself ---
+  const [copilotQuestion, setCopilotQuestion] = useState("");
+  const [copilotAnswer, setCopilotAnswer] = useState<string | null>(null);
+  const askCopilot = useMutation({
+    mutationFn: (vars: { id: string; question: string }) => findApi.askCopilot(vars.id, vars.question),
+    onSuccess: (result) => {
+      if ("unavailable" in result) { toast.error(result.reason); setCopilotAnswer(null); }
+      else setCopilotAnswer(result.answer);
+    },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
   // --- reports: suggestions + running (suggested or custom) ---
   const { data: reportSuggestions } = useQuery({
     queryKey: ["reportSuggestions", activeId],
@@ -303,6 +334,31 @@ function FindPage() {
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
+  const docFileBase = (active?.name ?? "nexus").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  async function downloadDocumentation(format: "md" | "pdf") {
+    if (!activeId) return;
+    const doc = documentation ?? (await findApi.getDocumentation(activeId));
+    const text = [doc.technical_markdown, doc.functional_markdown].filter(Boolean).join("\n\n---\n\n");
+    if (format === "md") downloadTextFile(`${docFileBase}-documentation.md`, text);
+    else downloadMarkdownAsPdf(`${docFileBase}-documentation.pdf`, "Technical & Functional Documentation", text);
+  }
+
+  async function downloadGlossary(format: "md" | "pdf") {
+    if (!activeId) return;
+    const g = glossary && !("unavailable" in glossary) ? glossary : await findApi.getGlossary(activeId);
+    if ("unavailable" in g) { toast.error(g.reason); return; }
+    const lines = ["# Business glossary", ""];
+    for (const t of g.terms) lines.push(`- **${t.table}.${t.column}** — ${t.term}: ${t.definition}${t.isDerived ? ` _(derived: ${t.derivationLogic})_` : ""}`);
+    if (g.synonym_groups.length) {
+      lines.push("", "## Synonym groups", "");
+      for (const sg of g.synonym_groups) lines.push(`- **${sg.standardizedTerm}**: ${sg.members.join(", ")}`);
+    }
+    const text = lines.join("\n");
+    if (format === "md") downloadTextFile(`${docFileBase}-glossary.md`, text);
+    else downloadMarkdownAsPdf(`${docFileBase}-glossary.pdf`, "Business Glossary", text);
+  }
+
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   function toggleExpanded(name: string) {
     setExpandedTables((prev) => {
@@ -318,7 +374,7 @@ function FindPage() {
       <PageHeader
         phase="01 · Find"
         title="Schema & relationship intelligence"
-        desc="Connect to a database your team already knows, crawl its schema, and get technical + functional documentation out the other end."
+        desc="Your database has the data. Nexus gives it back the logic — connect to a database your team already knows, crawl its schema, and get a business glossary, relationship map, and technical + functional documentation out the other end."
         action={
           <Dialog open={registerOpen} onOpenChange={(o) => { setRegisterOpen(o); if (!o) { setRegisterFields({}); setTestState("idle"); setTestMessage(""); setRegisterName(""); } }}>
             <DialogTrigger asChild>
@@ -434,15 +490,32 @@ function FindPage() {
               )}
             </div>
 
+            {schema?.drift && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-warning">Schema drift since the previous crawl</span> —
+                  {schema.drift.addedTables.length > 0 && <> {schema.drift.addedTables.length} table{schema.drift.addedTables.length === 1 ? "" : "s"} added ({schema.drift.addedTables.join(", ")}).</>}
+                  {schema.drift.removedTables.length > 0 && <> {schema.drift.removedTables.length} table{schema.drift.removedTables.length === 1 ? "" : "s"} removed ({schema.drift.removedTables.join(", ")}).</>}
+                  {schema.drift.changedTables.length > 0 && (
+                    <> {schema.drift.changedTables.map((c) => `${c.table} (${[...c.addedColumns.map((a) => `+${a}`), ...c.removedColumns.map((r) => `-${r}`)].join(", ")})`).join("; ")}.</>
+                  )}
+                  {" "}Regenerate documentation and the glossary to keep them in sync.
+                </div>
+              </div>
+            )}
+
             {!schema?.tables.length ? (
               <div className="p-10 text-center text-sm text-muted-foreground">No schema yet — click "Crawl schema" above to introspect this connection.</div>
             ) : (
               <Tabs value={tab} onValueChange={setTab}>
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
                   <TabsTrigger value="schema"><Table2 className="mr-1.5 h-3.5 w-3.5" />Schema</TabsTrigger>
                   <TabsTrigger value="relationships"><Waypoints className="mr-1.5 h-3.5 w-3.5" />Relationships</TabsTrigger>
                   <TabsTrigger value="status"><Tags className="mr-1.5 h-3.5 w-3.5" />Status fields</TabsTrigger>
+                  <TabsTrigger value="glossary"><BookOpen className="mr-1.5 h-3.5 w-3.5" />Glossary</TabsTrigger>
                   <TabsTrigger value="domain"><Brain className="mr-1.5 h-3.5 w-3.5" />Domain</TabsTrigger>
+                  <TabsTrigger value="copilot"><Bot className="mr-1.5 h-3.5 w-3.5" />Copilot</TabsTrigger>
                   <TabsTrigger value="reports"><BarChart3 className="mr-1.5 h-3.5 w-3.5" />Reports</TabsTrigger>
                   <TabsTrigger value="documentation"><FileText className="mr-1.5 h-3.5 w-3.5" />Documentation</TabsTrigger>
                 </TabsList>
@@ -530,6 +603,78 @@ function FindPage() {
                   ))}
                 </TabsContent>
 
+                <TabsContent value="glossary" className="space-y-4">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+                    Your database has the data. Nexus gives it back the logic — what a column is for versus what it's named, which fields are derived rather than stored, and which differently-named columns across tables mean the same thing.
+                  </div>
+                  {glossaryLoading ? (
+                    <div className="p-6 text-center text-sm text-muted-foreground">Reconstructing the glossary…</div>
+                  ) : !glossary || "unavailable" in glossary ? (
+                    <div className="space-y-3 p-6 text-center text-sm text-muted-foreground">
+                      <div>{glossary && "reason" in glossary ? glossary.reason : "No glossary yet."}</div>
+                      <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
+                        {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <BookOpen className="mr-2 h-3 w-3" />} Generate glossary
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
+                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
+                        <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
+                          {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                        </Button>
+                      </div>
+
+                      {!glossary.terms.length ? (
+                        <div className="p-6 text-center text-sm text-muted-foreground">No business-meaningful columns identified.</div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {glossary.terms.map((t, i) => (
+                            <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-medium">{t.table}.{t.column}</span>
+                                <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">{t.term}</Badge>
+                                {t.isDerived && <Badge variant="outline" className="text-[10px]">derived</Badge>}
+                              </div>
+                              <div className="mt-1 text-muted-foreground">{t.definition}</div>
+                              {t.isDerived && t.derivationLogic && <div className="mt-1 font-mono text-[11px] text-muted-foreground">= {t.derivationLogic}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {glossary.synonym_groups.length > 0 && (
+                        <div>
+                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Same concept, different names</div>
+                          <div className="space-y-1.5">
+                            {glossary.synonym_groups.map((sg, i) => (
+                              <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
+                                <Badge variant="outline" className="border-primary/40 text-primary">{sg.standardizedTerm}</Badge>
+                                <span className="text-muted-foreground">=</span>
+                                {sg.members.map((m) => <span key={m} className="font-mono">{m}</span>)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {schema && schema.unconstrainedReferences.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Link2Off className="h-3.5 w-3.5" /> Unconstrained references</div>
+                          <div className="space-y-1.5">
+                            {schema.unconstrainedReferences.map((r, i) => (
+                              <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 font-mono text-xs">
+                                <span>{r.table}.{r.column}</span> <span className="text-muted-foreground">looks like a reference to</span> <span>{r.likelyTargetTable}</span> <span className="text-muted-foreground">— no FK constraint enforces it</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
+
                 <TabsContent value="domain" className="space-y-4">
                   {domainLoading ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">Classifying domain…</div>
@@ -579,6 +724,48 @@ function FindPage() {
                   )}
                 </TabsContent>
 
+                <TabsContent value="copilot" className="space-y-4">
+                  <div className="rounded-xl border border-border p-5">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h4 className="font-medium">Ask Nexus</h4>
+                      <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">Schema-grounded</Badge>
+                    </div>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Ask what a table, column, or relationship means. The copilot answers only from the crawled schema, glossary, and documentation — it never invents a number, and points you to Reports for anything that needs a real query.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={copilotQuestion}
+                        onChange={(e) => setCopilotQuestion(e.target.value)}
+                        placeholder="e.g. what does the status column on properties mean?"
+                        onKeyDown={(e) => e.key === "Enter" && copilotQuestion.trim() && activeId && askCopilot.mutate({ id: activeId, question: copilotQuestion })}
+                      />
+                      <Button
+                        disabled={!copilotQuestion.trim() || askCopilot.isPending}
+                        onClick={() => activeId && askCopilot.mutate({ id: activeId, question: copilotQuestion })}
+                      >
+                        {askCopilot.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-2 h-3.5 w-3.5" />} Ask
+                      </Button>
+                    </div>
+                    {copilotAnswer && (
+                      <div className="prose prose-invert prose-sm mt-4 max-w-none rounded-lg border border-primary/30 bg-primary/5 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
+                        <ReactMarkdown>{copilotAnswer}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border p-5">
+                    <h4 className="mb-1 font-medium">Show &amp; download</h4>
+                    <p className="mb-3 text-xs text-muted-foreground">Pull the latest generated documentation and glossary for this connection without switching tabs.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => downloadDocumentation("md")}><Download className="mr-2 h-3 w-3" /> Documentation (.md)</Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadDocumentation("pdf")}><Download className="mr-2 h-3 w-3" /> Documentation (.pdf)</Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Glossary (.md)</Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> Glossary (.pdf)</Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="reports" className="space-y-4">
                   <div className="rounded-xl border border-border p-5">
                     <div className="mb-1 flex items-center gap-2">
@@ -600,7 +787,7 @@ function FindPage() {
                         <Send className="mr-2 h-3.5 w-3.5" /> Generate
                       </Button>
                     </div>
-                    {customOutcome && <div className="mt-4"><ReportResultView outcome={customOutcome} /></div>}
+                    {customOutcome && <div className="mt-4"><ReportResultView outcome={customOutcome} filename={`${docFileBase}-custom-report`} /></div>}
                   </div>
 
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Suggested reports</div>
@@ -618,7 +805,7 @@ function FindPage() {
                             <Play className="mr-2 h-3 w-3" /> Run
                           </Button>
                         </div>
-                        {reportOutcomes[t.id] && <div className="mt-4"><ReportResultView outcome={reportOutcomes[t.id]} /></div>}
+                        {reportOutcomes[t.id] && <div className="mt-4"><ReportResultView outcome={reportOutcomes[t.id]} filename={`${docFileBase}-${t.id}`} /></div>}
                       </div>
                     ))
                   )}
@@ -627,9 +814,13 @@ function FindPage() {
                 <TabsContent value="documentation" className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">{documentation ? `Generated ${new Date(documentation.generated_at).toLocaleString()}` : ""}</div>
-                    <Button size="sm" variant="outline" onClick={() => regenerateDocs.mutate()} disabled={regenerateDocs.isPending}>
-                      {regenerateDocs.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => downloadDocumentation("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadDocumentation("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
+                      <Button size="sm" variant="outline" onClick={() => regenerateDocs.mutate()} disabled={regenerateDocs.isPending}>
+                        {regenerateDocs.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                      </Button>
+                    </div>
                   </div>
                   {docLoading ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">Generating documentation…</div>

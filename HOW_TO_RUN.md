@@ -55,9 +55,10 @@ Supabase project.
    - `CORS_ORIGIN` — the web app's origin, must match exactly (default
      `http://localhost:8080`)
    - `ANTHROPIC_API_KEY` — optional, enables the AI functional-narrative half of
-     generated documentation, domain classification, and natural-language report
-     requests. The deterministic technical doc and suggested (template) reports work
-     without it.
+     generated documentation, domain classification, the business glossary, the
+     schema copilot, and natural-language report requests. The deterministic
+     technical doc (including its naming/referential signals), schema drift
+     detection, and suggested (template) reports all work without it.
    - `REPORT_MAX_COST` / `REPORT_MAX_CARDINALITY` — optional, the dry-run thresholds a
      generated report query is checked against before it's allowed to run (defaults
      `10000` / `1000000`). See "Reports & cost controls" below.
@@ -65,8 +66,8 @@ Supabase project.
 
 Once both are running, sign in, then `/app/find` should load for real — register an
 Oracle connection (host, port, service name, username, password), crawl its schema,
-and browse the Schema / Relationships / Status fields / Domain / Reports /
-Documentation tabs, all talking to this service. The home page (`/app`) shows a
+and browse the Schema / Relationships / Status fields / Glossary / Domain / Copilot /
+Reports / Documentation tabs, all talking to this service. The home page (`/app`) shows a
 "Platform activity" usage report card — click it for total-usage-vs-this-session
 breakdowns, sourced from the service's own audit log.
 
@@ -88,7 +89,40 @@ business-domain label (e.g. `real_estate`) with a confidence score and a rationa
 plus a per-table tag (`real_estate:core` vs `system`) so generic tables like an audit
 log don't get forced under the main label or offered up as report candidates.
 Requires `ANTHROPIC_API_KEY`; without it the tab explains that plainly rather than
-failing.
+failing. Nothing about this classification is hard-coded to real estate or any other
+industry — it's inferred fresh from whatever schema gets crawled.
+
+#### Business glossary
+
+The **Glossary** tab reconstructs the layer that normally only lives in tribal
+knowledge: a plain-English term and definition for each business-meaningful column,
+a flag (with the formula) for columns whose value is derived rather than stored, and
+synonym groups linking differently-named columns across tables that mean the same
+thing (e.g. a denormalized `orders.total_qty` and `order_items.quantity`). It also
+surfaces the schema-only, AI-free "unconstrained reference" signal — an `*_id`
+column with no declared foreign key, where a table matching the implied name exists
+anyway. Requires `ANTHROPIC_API_KEY` for the AI-generated half (terms + synonym
+groups); the unconstrained-reference signal works without it. Downloadable as
+Markdown or PDF, both generated client-side.
+
+#### Copilot
+
+The **Copilot** tab (labelled "Ask Nexus" in the UI — distinct from the site-wide
+NEXUS AI chat bubble mentioned above) answers questions about a connection's schema,
+glossary, and documentation, grounded strictly in what's actually been crawled and
+generated. It deliberately never runs a query or states a specific data value as
+fact — for anything that needs a real number, it points at the Reports tab, which is
+the only code path allowed to draft SQL. The same tab also has one-click downloads
+(Markdown/PDF) for the latest documentation and glossary, so a report or write-up can
+be pulled without switching tabs.
+
+#### Schema drift
+
+Re-crawling a connection compares the new schema against the *previous* completed
+crawl (a lightweight table/column-name snapshot kept on each `schema_crawls` row) and
+surfaces what changed — tables or columns added/removed — as a banner on the
+connection's detail view, with a prompt to regenerate documentation and the glossary
+so they don't quietly go stale against a schema that moved.
 
 #### Reports & cost controls
 

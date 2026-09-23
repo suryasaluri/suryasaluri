@@ -77,11 +77,20 @@ export type TableDef = {
 };
 export type RelationshipEdge = { fromTable: string; fromColumns: string[]; toTable: string; toColumns: string[]; constraintName: string };
 
+export type UnconstrainedReference = { table: string; column: string; likelyTargetTable: string };
+export type SchemaDrift = {
+  addedTables: string[];
+  removedTables: string[];
+  changedTables: { table: string; addedColumns: string[]; removedColumns: string[] }[];
+};
+
 export type SchemaResponse = {
   tables: TableDef[];
   relationships: RelationshipEdge[];
   statusFields: StatusFieldCandidate[];
   lastCrawledAt: string | null;
+  unconstrainedReferences: UnconstrainedReference[];
+  drift: SchemaDrift | null;
 };
 
 export type DocumentationSnapshot = {
@@ -90,6 +99,19 @@ export type DocumentationSnapshot = {
   functional_markdown: string | null;
   generated_at: string;
 };
+
+export type GlossaryTerm = { table: string; column: string; term: string; definition: string; isDerived: boolean; derivationLogic: string };
+export type SynonymGroup = { standardizedTerm: string; members: string[] };
+export type GlossarySnapshot = {
+  id: string;
+  terms: GlossaryTerm[];
+  synonym_groups: SynonymGroup[];
+  generated_at: string;
+};
+export type GlossaryUnavailable = { unavailable: true; reason: string };
+
+export type CopilotAnswer = { answer: string };
+export type CopilotUnavailable = { unavailable: true; reason: string };
 
 export type DomainClassification = {
   domain: string;
@@ -197,6 +219,13 @@ export const findApi = {
   getDomain: (connectionId: string) => request<DomainClassification | DomainUnavailable>(`/connections/${connectionId}/domain`),
   regenerateDomain: (connectionId: string) =>
     request<DomainClassification | DomainUnavailable>(`/connections/${connectionId}/domain/regenerate`, { method: "POST" }),
+
+  getGlossary: (connectionId: string) => request<GlossarySnapshot | GlossaryUnavailable>(`/connections/${connectionId}/glossary`),
+  regenerateGlossary: (connectionId: string) =>
+    request<GlossarySnapshot | GlossaryUnavailable>(`/connections/${connectionId}/glossary/regenerate`, { method: "POST" }),
+
+  askCopilot: (connectionId: string, question: string) =>
+    request<CopilotAnswer | CopilotUnavailable>(`/connections/${connectionId}/copilot/ask`, { method: "POST", body: JSON.stringify({ question }) }),
 
   getReportSuggestions: (connectionId: string) => request<ReportTemplate[]>(`/connections/${connectionId}/reports/suggestions`),
   runReport: (connectionId: string, body: { templateId: string; fields: Record<string, string>; filterValues?: Record<string, string> }) =>

@@ -6,6 +6,8 @@ import { registerCrawlRoutes } from "./routes/crawls";
 import { registerSchemaRoutes } from "./routes/schema";
 import { registerDocumentationRoutes } from "./routes/documentation";
 import { registerDomainRoutes } from "./routes/domain";
+import { registerGlossaryRoutes } from "./routes/glossary";
+import { registerCopilotRoutes } from "./routes/copilot";
 import { registerReportRoutes } from "./routes/reports";
 import { registerUsageRoutes } from "./routes/usage";
 
@@ -27,6 +29,8 @@ app.register(async (instance) => registerCrawlRoutes(instance));
 app.register(async (instance) => registerSchemaRoutes(instance));
 app.register(async (instance) => registerDocumentationRoutes(instance));
 app.register(async (instance) => registerDomainRoutes(instance));
+app.register(async (instance) => registerGlossaryRoutes(instance));
+app.register(async (instance) => registerCopilotRoutes(instance));
 app.register(async (instance) => registerReportRoutes(instance));
 app.register(async (instance) => registerUsageRoutes(instance));
 

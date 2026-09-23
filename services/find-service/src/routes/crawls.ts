@@ -6,6 +6,7 @@ import { requireAuth, type AuthedRequest } from "../auth";
 import { getConnector } from "../connectors/registry";
 import { detectStatusFields } from "../schema/statusFields";
 import { classifyColumnSensitivity } from "../sensitivity";
+import { buildTableSummary } from "../schema/drift";
 import type { NormalizedSchema } from "../schema/types";
 
 const startSchema = z.object({ fields: z.record(z.string()).default({}) });
@@ -67,6 +68,7 @@ async function runCrawl(orgId: string, dataSourceId: string, crawlId: string, co
         tables_found: tablesFound,
         views_found: viewsFound,
         status_fields: statusFields,
+        table_summary: buildTableSummary(schema),
         completed_at: new Date().toISOString(),
       })
       .eq("id", crawlId);
