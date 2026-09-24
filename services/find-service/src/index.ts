@@ -11,7 +11,12 @@ import { registerCopilotRoutes } from "./routes/copilot";
 import { registerReportRoutes } from "./routes/reports";
 import { registerUsageRoutes } from "./routes/usage";
 
-const app = Fastify({ logger: true });
+// Default Fastify body limit (1MB) is too small for the file-upload
+// connector — a real export's base64-encoded content routinely runs to
+// several MB. 25MB covers a realistic single/paired file upload while still
+// bounding the worst case; MAX_ROWS in connectors/file/csv.ts separately
+// caps how much of a large file actually gets parsed into a schema.
+const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
 
 await app.register(cors, {
   origin: (process.env.CORS_ORIGIN ?? "http://localhost:8080").split(","),

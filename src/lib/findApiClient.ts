@@ -5,14 +5,15 @@ const BASE_URL = import.meta.env.VITE_FIND_SERVICE_URL || "http://localhost:4001
 export type FieldSpec = {
   key: string;
   label: string;
-  type: "text" | "password" | "number";
+  type: "text" | "password" | "number" | "file";
   placeholder?: string;
+  hidden?: boolean;
 };
 
 export type ConnectorMeta = {
   id: string;
   label: string;
-  category: "Database";
+  category: "Database" | "File";
   connectorType: string;
   defaultPort?: number;
   fields: FieldSpec[];
@@ -98,6 +99,8 @@ export type DocumentationSnapshot = {
   technical_markdown: string;
   functional_markdown: string | null;
   generated_at: string;
+  /** True when the schema was re-crawled after this snapshot was generated — the doc may no longer reflect the real schema. */
+  stale: boolean;
 };
 
 export type GlossaryTerm = { table: string; column: string; term: string; definition: string; isDerived: boolean; derivationLogic: string };
@@ -107,10 +110,12 @@ export type GlossarySnapshot = {
   terms: GlossaryTerm[];
   synonym_groups: SynonymGroup[];
   generated_at: string;
+  stale: boolean;
 };
 export type GlossaryUnavailable = { unavailable: true; reason: string };
 
-export type CopilotAnswer = { answer: string };
+export type Citation = { ref: string; note?: string };
+export type CopilotAnswer = { answer: string; citations: Citation[] };
 export type CopilotUnavailable = { unavailable: true; reason: string };
 
 export type DomainClassification = {

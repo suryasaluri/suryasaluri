@@ -65,7 +65,8 @@ Supabase project.
 3. `bun run dev`
 
 Once both are running, sign in, then `/app/find` should load for real — register an
-Oracle connection (host, port, service name, username, password), crawl its schema,
+Oracle connection (host, port, service name, username, password), or add a `.csv`/
+`.xlsx` file connection to try Nexus with no live database at all, crawl its schema,
 and browse the Schema / Relationships / Status fields / Glossary / Domain / Copilot /
 Reports / Documentation tabs, all talking to this service. The home page (`/app`) shows a
 "Platform activity" usage report card — click it for total-usage-vs-this-session
@@ -78,9 +79,11 @@ header the usage report uses for its "this session" split. `GET /connectors` and
 query the catalog or dry-run a connection without a Nexus Command session.
 
 Find connects to a database your team already knows and exposes — it no longer scans
-for unknown sources. Scope today is Oracle / Oracle Fusion only (real connectivity via
-`oracledb`'s Thin mode — no Oracle Instant Client needed), architected so another
-database type is a new connector module away, not a rewrite.
+for unknown sources. Two connectors exist today: Oracle / Oracle Fusion (real
+connectivity via `oracledb`'s Thin mode — no Oracle Instant Client needed) and a file
+upload (`.csv`/`.xlsx`, for trying Nexus against a real export before wiring up
+credentials, or in an environment with no reachable database). Both are architected
+the same way, so a third database type is a new connector module away, not a rewrite.
 
 #### Domain classification
 
@@ -112,17 +115,51 @@ NEXUS AI chat bubble mentioned above) answers questions about a connection's sch
 glossary, and documentation, grounded strictly in what's actually been crawled and
 generated. It deliberately never runs a query or states a specific data value as
 fact — for anything that needs a real number, it points at the Reports tab, which is
-the only code path allowed to draft SQL. The same tab also has one-click downloads
-(Markdown/PDF) for the latest documentation and glossary, so a report or write-up can
-be pulled without switching tabs.
+the only code path allowed to draft SQL. Every answer carries **citations** — a
+"Sources" row of clickable chips, each a real `table` or `table.column` the answer
+relied on (validated against the schema before being shown; a hallucinated ref is
+dropped rather than displayed as if it were grounded) — clicking one jumps to the
+Schema tab and expands that table, the same "click a citation, land at the source"
+behavior a grounded codebase-wiki answer gives. The functional narrative in the
+Documentation tab gets the same treatment, ending in a "## Sources" section. The same
+tab also has one-click downloads (Markdown/PDF) for the latest documentation and
+glossary, so a report or write-up can be pulled without switching tabs.
+
+#### Relationship diagram
+
+The **Relationships** tab opens with a visual ER-style diagram — every table as a
+node, every foreign key as an arrow — above the existing text list, laid out
+deterministically (tables with more relationships placed first, no external graph-
+layout library) and scrollable for a schema with many tables. A gold dot flags a
+table with at least one sensitive (PII/PHI/PCI) column; clicking a table jumps to its
+entry in the Schema tab.
 
 #### Schema drift
 
 Re-crawling a connection compares the new schema against the *previous* completed
 crawl (a lightweight table/column-name snapshot kept on each `schema_crawls` row) and
 surfaces what changed — tables or columns added/removed — as a banner on the
-connection's detail view, with a prompt to regenerate documentation and the glossary
-so they don't quietly go stale against a schema that moved.
+connection's detail view. Independently, the Documentation and Glossary tabs each
+show a **"Stale"** badge whenever their snapshot predates the latest crawl, so a
+schema that moved doesn't get documented against silently — regenerate either from
+the same tab. (A credential-storing background poller that re-crawls on a timer was
+deliberately not built: Nexus never persists a database password or file content past
+the request that used it, and auto re-indexing would require holding one on hand
+between crawls. The safe equivalent is this staleness signal plus a customer's own CI
+calling `POST /connections/:id/crawl` right after a deploy, with fresh credentials
+each time.)
+
+#### MCP server
+
+`services/find-service` also ships an MCP (Model Context Protocol) server
+(`cd services/find-service && bun run mcp`) exposing `ask_schema`, `read_glossary`,
+and `read_relationships` as tools — so another AI tool (a coding agent working on a
+customer's own codebase, Claude Desktop, etc.) can query a connection's schema
+intelligence directly, not just a human in this web app. It needs `FIND_API_TOKEN` (a
+Supabase access token) and talks to this same find-service instance over HTTP, so the
+external agent gets the identical guarded behavior — `ask_schema` never invents a
+data value, same as the web app's Copilot tab. See
+`services/find-service/README.md` for details.
 
 #### Reports & cost controls
 

@@ -1,12 +1,14 @@
 import type { NormalizedSchema } from "../schema/types";
 
-export type ConnectorCategory = "Database";
+export type ConnectorCategory = "Database" | "File";
 
 export type FieldSpec = {
   key: string;
   label: string;
-  type: "text" | "password" | "number";
+  type: "text" | "password" | "number" | "file";
   placeholder?: string;
+  /** Set on a field the UI fills in automatically (e.g. a file's name, captured alongside its content) rather than one the user types into directly. */
+  hidden?: boolean;
 };
 
 export type ConnectorMeta = {

@@ -25,8 +25,11 @@ None of this is tuned to one industry or one company's schema — domain
 classification, the glossary, and the naming-consistency signals are all inferred
 fresh from whatever schema is crawled, not pattern-matched against a known one.
 
-Scope today is **Oracle / Oracle Fusion** only, architected so another database type
-is a new connector module + one registry line, not a rewrite (`src/connectors/registry.ts`).
+Two connectors exist today: **Oracle / Oracle Fusion** (a live database) and **file
+upload** (`.csv`/`.xlsx` — a zero-setup way to try Nexus against a real export before
+anyone hands over credentials at all). Both implement the same interface
+(`src/connectors/types.ts`), so a third database type is a new connector module + one
+registry line, not a rewrite (`src/connectors/registry.ts`).
 
 ## Running
 
@@ -84,22 +87,31 @@ authorization.
   AI, always on), and `drift` — added/removed tables and changed columns versus the
   *previous* completed crawl, or `null` when there's nothing to report.
 - `GET /connections/:id/documentation` — generates on first request, then serves the
-  stored snapshot. `POST /connections/:id/documentation/regenerate` — forces a new one.
+  stored snapshot, plus `stale: boolean` (true when the schema's been re-crawled since
+  this snapshot was generated). `POST /connections/:id/documentation/regenerate` —
+  forces a new one. The functional narrative's Markdown ends with a "## Sources"
+  section — every table/column/constraint the narrative actually cited, validated
+  against the real schema (a hallucinated ref is dropped, never shown as real).
 - `GET /connections/:id/domain` — the latest domain classification (generates on
   first request); `{ unavailable: true, reason }` when no `ANTHROPIC_API_KEY` is set
   or there's no crawled schema yet. `POST /connections/:id/domain/regenerate` — forces
   a new one.
 - `GET /connections/:id/glossary` — the business glossary: `terms` (one per
   business-meaningful column — a short term, a plain-English definition, and an
-  `isDerived`/`derivationLogic` flag for computed values) and `synonym_groups`
-  (columns across different tables that mean the same thing under different names).
-  Same generate-on-first-request / `{ unavailable, reason }` convention as domain.
+  `isDerived`/`derivationLogic` flag for computed values), `synonym_groups`
+  (columns across different tables that mean the same thing under different names),
+  and `stale: boolean` (same convention as documentation). Same generate-on-first-
+  request / `{ unavailable, reason }` convention as domain.
   `POST /connections/:id/glossary/regenerate`.
-- `POST /connections/:id/copilot/ask` — `{ question }`. Answers strictly from the
-  crawled schema, glossary, and documentation already on file — it never runs a query
-  or states a specific data value, and tells the caller to use `/reports/custom`
-  instead when the question actually needs a real number. `{ unavailable, reason }`
-  under the same convention when no `ANTHROPIC_API_KEY` is set.
+- `POST /connections/:id/copilot/ask` — `{ question }` → `{ answer, citations }`.
+  Answers strictly from the crawled schema, glossary, and documentation already on
+  file — it never runs a query or states a specific data value, and tells the caller
+  to use `/reports/custom` instead when the question actually needs a real number.
+  Every citation is a table/table.column/constraint ref validated against the real
+  schema before being returned — the same "click a citation, land at something real"
+  guarantee a grounded codebase-wiki answer gives, just at schema granularity instead
+  of a source line. `{ unavailable, reason }` under the same convention when no
+  `ANTHROPIC_API_KEY` is set.
 - `GET /connections/:id/reports/suggestions` — heuristic report templates from the
   latest crawl (no AI, instant). `POST /connections/:id/reports/run` —
   `{ templateId, fields, filterValues }`, runs a suggested template.
@@ -122,6 +134,28 @@ for primary/foreign/check constraints). `src/schema/statusFields.ts` parses CHEC
 constraint text for enum-like columns (e.g. `STATUS IN ('ACTIVE','SOLD')`); a name
 heuristic (`status|state|flag`) catches the rest. `src/sensitivity.ts` flags likely
 PII/PHI/PCI columns by name.
+
+## File connector
+
+`src/connectors/file/` — a zero-setup way to try Nexus against a real export (a sales
+extract, a vendor-config workbook) before wiring up live database credentials, or to
+test the pipeline in an environment with no reachable database at all. Two files
+(`file1`/`file2` in the connector's fields, the second optional) are combined into one
+schema per crawl; a `.csv` becomes one table named after the file, a `.xlsx` workbook
+becomes one table per sheet (a sheet whose first row has fewer than 2 non-empty cells
+— a "Read Me" cover sheet, say — is skipped as non-tabular). Column types are guessed
+from sampled values into the same Oracle-style tokens (`NUMBER`/`DATE`/`VARCHAR2`) the
+rest of the pipeline already pattern-matches on, so a file-sourced schema runs through
+domain classification, the glossary, report suggestions, and the unconstrained-
+reference heuristic identically to a crawled database's. Parsing is capped at 5,000
+rows per file (`MAX_ROWS` in `csv.ts`) and the service's Fastify instance raises its
+body limit to 25MB to fit a realistic upload's base64 payload. Nothing is persisted
+server-side beyond the derived schema — like a database password, the file itself is
+supplied fresh by the caller on every crawl, never stored.
+
+Tested in `test/fileConnector.test.ts` against real files: a trimmed extract of an
+Oracle Fusion sales export and an actual multi-sheet vendor-config workbook (both
+supplied for that purpose) — not synthetic fixtures.
 
 ## Documentation generation
 
@@ -149,7 +183,27 @@ connection surfaces what changed without needing full historical versions of
 `src/copilot/ask.ts` — grounded Q&A over the schema, glossary, and documentation
 already on file. Deliberately separate from the guarded report pipeline
 (`nlParse.ts` + `spec.ts`), which is the only code path allowed to draft SQL: the
-copilot never runs a query or states a specific data value as fact.
+copilot never runs a query or states a specific data value as fact. Every answer is
+generated via Claude tool-use as `{ answer, citations }` and `src/citations.ts` drops
+any citation ref that doesn't literally exist in the schema before it's returned —
+the same "never trust the draft directly" discipline `nlParse.ts` applies to a
+drafted report spec. `src/docs/functionalDoc.ts` uses the same tool + validator for
+the functional narrative's "## Sources" section.
+
+## MCP server
+
+`src/mcp/server.ts` (`bun run mcp`) exposes three read-only tools over the Model
+Context Protocol — `ask_schema`, `read_glossary`, `read_relationships` — so another
+AI tool (a coding agent working on the customer's own codebase, Claude Desktop, etc.)
+can query a connection's schema intelligence directly, the same role a codebase
+wiki's MCP server plays for source code, just grounded in a database's schema instead
+of its files. It's a thin proxy (`src/mcp/client.ts`) over find-service's own HTTP
+API — `ask_schema` calls the same guarded `/copilot/ask` endpoint the web app uses, so
+an external agent gets the identical trust guarantee (no invented data values) a human
+using the Find UI gets. Needs `FIND_API_TOKEN` (a Supabase access token for the org
+it should act as) and optionally `FIND_SERVICE_URL` (default `http://localhost:4001`).
+`src/mcp/client.ts`'s functions take an injected `fetchImpl`, so they're unit-tested
+with a mocked fetch rather than a live server.
 
 ## Tests
 
@@ -159,7 +213,10 @@ query executor — no live database needed), the CHECK-constraint parsing
 heuristics (`suggest.ts`), spec validation and safe SQL generation (`spec.ts` —
 including that a filter value never gets inlined into the SQL text), the report
 result cache (`cache.ts`), the unconstrained-reference heuristic
-(`dataQuality.ts`), and the schema-drift diff (`drift.ts`). The Claude-calling
-modules (`classifier.ts`, `functionalDoc.ts`, `glossary.ts`, `copilot/ask.ts`) have
-no unit tests of their own — each returns `null` deterministically without
+(`dataQuality.ts`), the schema-drift diff (`drift.ts`), the citation validator
+(`citations.ts`), the MCP client/server (`mcp.test.ts`, against a mocked fetch), and
+the file connector (`fileConnector.test.ts`, against the real uploaded CSV/XLSX
+fixtures in `test/fixtures/` — not synthetic ones). The Claude-calling modules
+(`classifier.ts`, `functionalDoc.ts`, `glossary.ts`, `copilot/ask.ts`) have no unit
+tests of their own — each returns `null` deterministically without
 `ANTHROPIC_API_KEY`, which is the only branch testable without a live call.

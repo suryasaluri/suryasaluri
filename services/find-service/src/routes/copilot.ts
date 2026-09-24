@@ -43,7 +43,7 @@ export function registerCopilotRoutes(app: FastifyInstance) {
 
     const glossary: Glossary | null = glossaryRow ? { terms: glossaryRow.terms, synonymGroups: glossaryRow.synonym_groups } : null;
 
-    const answer = await answerCopilotQuestion(
+    const result = await answerCopilotQuestion(
       parsed.data.question,
       schema,
       statusFields,
@@ -52,7 +52,7 @@ export function registerCopilotRoutes(app: FastifyInstance) {
       docRow?.functional_markdown ?? null,
     );
 
-    if (!answer) {
+    if (!result) {
       reply.code(200);
       return { unavailable: true, reason: "ANTHROPIC_API_KEY not configured, or no crawled schema yet" };
     }
@@ -63,9 +63,9 @@ export function registerCopilotRoutes(app: FastifyInstance) {
       action: "copilot.asked",
       resource_type: "data_source",
       resource_id: id,
-      details: { question: parsed.data.question },
+      details: { question: parsed.data.question, citationCount: result.citations.length },
     });
 
-    return { answer };
+    return result;
   });
 }

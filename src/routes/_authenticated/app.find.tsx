@@ -22,9 +22,10 @@ import {
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
 import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv } from "@/lib/exportDocs";
+import { RelationshipDiagram } from "@/components/RelationshipDiagram";
 import {
   findApi, streamCrawl, type ConnectionRecord, type TableDef,
-  type ReportTemplate, type ReportOutcome, type CostEstimate,
+  type ReportTemplate, type ReportOutcome, type CostEstimate, type CopilotAnswer,
 } from "@/lib/findApiClient";
 
 export const Route = createFileRoute("/_authenticated/app/find")({
@@ -56,7 +57,38 @@ type CredentialActionInput =
   | { kind: "crawl" }
   | { kind: "run"; template: ReportTemplate }
   | { kind: "custom"; text: string };
-type CredentialAction = CredentialActionInput & { connectionId: string };
+type CredentialAction = CredentialActionInput & { connectionId: string; connectorId: string | null };
+
+/** Renders one connector field by its declared type — a native file input for "file" (reads client-side via FileReader, never touches the server until submit), a plain Input otherwise. A "file" field's paired `<key>Name` field is filled in automatically from the chosen File object, never shown to the user directly (the connector marks it `hidden`). */
+function FieldInput({ field, value, onChange }: { field: import("@/lib/findApiClient").FieldSpec; value: string; onChange: (key: string, value: string) => void }) {
+  if (field.type === "file") {
+    return (
+      <input
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        className="block w-full text-xs text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            onChange(field.key, String(reader.result ?? ""));
+            onChange(`${field.key}Name`, file.name);
+          };
+          reader.readAsDataURL(file);
+        }}
+      />
+    );
+  }
+  return (
+    <Input
+      type={field.type === "number" ? "number" : field.type}
+      value={value}
+      onChange={(e) => onChange(field.key, e.target.value)}
+      placeholder={field.placeholder}
+    />
+  );
+}
 
 function CostPanel({ estimate, cached, latencyMs }: { estimate: CostEstimate; cached: boolean; latencyMs?: number }) {
   if (estimate.blocked) {
@@ -135,7 +167,6 @@ function FindPage() {
   const qc = useQueryClient();
 
   const { data: connectors } = useQuery({ queryKey: ["connectors"], queryFn: findApi.getConnectors });
-  const connector = connectors?.[0];
 
   const { data: connections } = useQuery({ queryKey: ["connections"], queryFn: findApi.listConnections });
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -143,6 +174,12 @@ function FindPage() {
     if (!activeId && connections?.length) setActiveId(connections[0].id);
   }, [connections, activeId]);
   const active = connections?.find((c) => c.id === activeId) ?? null;
+
+  // Which connector's fields a dialog should render — the one picked in the
+  // register dialog, or whichever one the active/target connection actually
+  // used (Oracle and file uploads take different field sets).
+  const [registerConnectorId, setRegisterConnectorId] = useState<string | null>(null);
+  const registerConnector = connectors?.find((c) => c.id === registerConnectorId) ?? connectors?.[0];
 
   const [tab, setTab] = useState("schema");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -158,14 +195,14 @@ function FindPage() {
     mutationFn: async () => {
       setTestState("testing");
       setTestMessage("");
-      return findApi.testConnector(connector!.id, registerFields);
+      return findApi.testConnector(registerConnector!.id, registerFields);
     },
     onSuccess: (result) => { setTestState(result.ok ? "pass" : "fail"); setTestMessage(result.message); },
     onError: (e: unknown) => { setTestState("fail"); setTestMessage(errMsg(e)); },
   });
 
   const registerConnection = useMutation({
-    mutationFn: () => findApi.registerConnection({ name: registerName, connectorId: connector!.id, fields: registerFields }),
+    mutationFn: () => findApi.registerConnection({ name: registerName, connectorId: registerConnector!.id, fields: registerFields }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["connections"] });
       toast.success("Connection registered");
@@ -193,7 +230,7 @@ function FindPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   function openCredentialPrompt(conn: ConnectionRecord, action: CredentialActionInput) {
-    setCredentialAction({ connectionId: conn.id, ...action } as CredentialAction);
+    setCredentialAction({ connectionId: conn.id, connectorId: conn.connector_id, ...action } as CredentialAction);
     setCredentialFields({
       host: conn.host ?? "", port: conn.port ? String(conn.port) : "", serviceName: conn.service_name ?? "",
       username: conn.username ?? "", password: "",
@@ -261,15 +298,22 @@ function FindPage() {
 
   // --- AI copilot: grounded schema/glossary/documentation Q&A, never runs SQL itself ---
   const [copilotQuestion, setCopilotQuestion] = useState("");
-  const [copilotAnswer, setCopilotAnswer] = useState<string | null>(null);
+  const [copilotAnswer, setCopilotAnswer] = useState<CopilotAnswer | null>(null);
   const askCopilot = useMutation({
     mutationFn: (vars: { id: string; question: string }) => findApi.askCopilot(vars.id, vars.question),
     onSuccess: (result) => {
       if ("unavailable" in result) { toast.error(result.reason); setCopilotAnswer(null); }
-      else setCopilotAnswer(result.answer);
+      else setCopilotAnswer(result);
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
+
+  /** A citation ref ("table" or "table.column") jumps to the Schema tab and expands that table — the same "click a citation, land at the source" behavior a grounded answer should give. */
+  function jumpToCitation(ref: string) {
+    const tableName = ref.split(".")[0];
+    setExpandedTables((prev) => new Set(prev).add(tableName));
+    setTab("schema");
+  }
 
   // --- reports: suggestions + running (suggested or custom) ---
   const { data: reportSuggestions } = useQuery({
@@ -359,6 +403,8 @@ function FindPage() {
     else downloadMarkdownAsPdf(`${docFileBase}-glossary.pdf`, "Business Glossary", text);
   }
 
+  const credentialConnector = connectors?.find((c) => c.id === credentialAction?.connectorId);
+
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   function toggleExpanded(name: string) {
     setExpandedTables((prev) => {
@@ -378,24 +424,39 @@ function FindPage() {
         action={
           <Dialog open={registerOpen} onOpenChange={(o) => { setRegisterOpen(o); if (!o) { setRegisterFields({}); setTestState("idle"); setTestMessage(""); setRegisterName(""); } }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground" disabled={!connector}><Plus className="mr-2 h-4 w-4" /> Register Oracle connection</Button>
+              <Button className="bg-primary text-primary-foreground" disabled={!connectors?.length}><Plus className="mr-2 h-4 w-4" /> Add a connection</Button>
             </DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Register Oracle connection</DialogTitle>
-                <DialogDescription>Use the connection details for a database your team has already chosen to expose — Find no longer scans for unknown sources.</DialogDescription>
+                <DialogTitle>Add a connection</DialogTitle>
+                <DialogDescription>A live database your team has already chosen to expose, or a file export to try Nexus against before wiring up credentials at all — Find no longer scans for unknown sources.</DialogDescription>
               </DialogHeader>
-              {connector && (
+              {connectors && connectors.length > 1 && (
+                <div className="flex gap-2">
+                  {connectors.map((c) => (
+                    <Button
+                      key={c.id}
+                      type="button"
+                      size="sm"
+                      variant={registerConnector?.id === c.id ? "default" : "outline"}
+                      className={registerConnector?.id === c.id ? "bg-primary text-primary-foreground" : ""}
+                      onClick={() => { setRegisterConnectorId(c.id); setRegisterFields({}); setTestState("idle"); setTestMessage(""); }}
+                    >
+                      {c.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {registerConnector && (
                 <div className="space-y-4">
-                  <div><Label>Display name</Label><Input value={registerName} onChange={(e) => setRegisterName(e.target.value)} placeholder="Oracle Fusion — Production" /></div>
-                  {connector.fields.map((f) => (
+                  <div><Label>Display name</Label><Input value={registerName} onChange={(e) => setRegisterName(e.target.value)} placeholder={registerConnector.category === "File" ? "FPI Sales Export" : "Oracle Fusion — Production"} /></div>
+                  {registerConnector.fields.filter((f) => !f.hidden).map((f) => (
                     <div key={f.key}>
                       <Label>{f.label}</Label>
-                      <Input
-                        type={f.type === "number" ? "number" : f.type}
+                      <FieldInput
+                        field={f}
                         value={registerFields[f.key] ?? ""}
-                        onChange={(e) => { setRegisterFields({ ...registerFields, [f.key]: e.target.value }); setTestState("idle"); setTestMessage(""); }}
-                        placeholder={f.placeholder ?? (f.key === "port" ? String(connector.defaultPort ?? "") : undefined)}
+                        onChange={(key, val) => { setRegisterFields((prev) => ({ ...prev, [key]: val })); setTestState("idle"); setTestMessage(""); }}
                       />
                     </div>
                   ))}
@@ -413,7 +474,7 @@ function FindPage() {
                 </div>
               )}
               <DialogFooter>
-                <Button onClick={() => registerConnection.mutate()} disabled={registerConnection.isPending || !connector}>Register</Button>
+                <Button onClick={() => registerConnection.mutate()} disabled={registerConnection.isPending || !registerConnector}>Register</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -425,7 +486,7 @@ function FindPage() {
         <div className="grid gap-3">
           {!connections?.length ? (
             <div className="rounded-xl border border-border bg-card-gradient p-10 text-center text-sm text-muted-foreground">
-              No connections yet. Register the Oracle database your team wants Nexus to understand.
+              No connections yet. Add the database your team wants Nexus to understand — or upload a file export to try it without a live connection.
             </div>
           ) : (
             connections.map((c) => {
@@ -445,7 +506,7 @@ function FindPage() {
                           <StatusBadge status={c.status} />
                         </div>
                         <div className="mt-1 font-mono text-xs text-muted-foreground">
-                          {c.host}{c.port ? `:${c.port}` : ""}{c.service_name ? `/${c.service_name}` : ""} · {c.credential_label ?? "no credential on file"}
+                          {c.host ? <>{c.host}{c.port ? `:${c.port}` : ""}{c.service_name ? `/${c.service_name}` : ""} · {c.credential_label ?? "no credential on file"}</> : c.service_type}
                         </div>
                       </div>
                     </button>
@@ -573,18 +634,30 @@ function FindPage() {
                   })}
                 </TabsContent>
 
-                <TabsContent value="relationships" className="space-y-2">
+                <TabsContent value="relationships" className="space-y-4">
                   {!schema.relationships.length ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">No foreign-key relationships found.</div>
-                  ) : schema.relationships.map((r, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg bg-secondary/30 px-4 py-2.5 font-mono text-xs">
-                      <Waypoints className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span>{r.fromTable}({r.fromColumns.join(", ")})</span>
-                      <span className="text-muted-foreground">→</span>
-                      <span>{r.toTable}({r.toColumns.join(", ")})</span>
-                      <span className="ml-auto text-muted-foreground">{r.constraintName}</span>
-                    </div>
-                  ))}
+                  ) : (
+                    <>
+                      <RelationshipDiagram
+                        tables={schema.tables}
+                        relationships={schema.relationships}
+                        sensitivityByTable={Object.fromEntries(schema.tables.map((t) => [t.name, t.sensitivityLabels ?? []]))}
+                        onSelectTable={jumpToCitation}
+                      />
+                      <div className="space-y-2">
+                        {schema.relationships.map((r, i) => (
+                          <div key={i} className="flex items-center gap-2 rounded-lg bg-secondary/30 px-4 py-2.5 font-mono text-xs">
+                            <Waypoints className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span>{r.fromTable}({r.fromColumns.join(", ")})</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span>{r.toTable}({r.toColumns.join(", ")})</span>
+                            <span className="ml-auto text-muted-foreground">{r.constraintName}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="status" className="space-y-2">
@@ -618,12 +691,17 @@ function FindPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
-                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
-                        <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
-                          {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
-                        </Button>
+                      <div className="flex items-center justify-between gap-2">
+                        {glossary.stale ? (
+                          <Badge variant="outline" className="border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
+                        ) : <span />}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
+                          <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
+                          <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
+                            {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                          </Button>
+                        </div>
                       </div>
 
                       {!glossary.terms.length ? (
@@ -748,8 +826,25 @@ function FindPage() {
                       </Button>
                     </div>
                     {copilotAnswer && (
-                      <div className="prose prose-invert prose-sm mt-4 max-w-none rounded-lg border border-primary/30 bg-primary/5 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
-                        <ReactMarkdown>{copilotAnswer}</ReactMarkdown>
+                      <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                        <div className="prose prose-invert prose-sm max-w-none [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
+                          <ReactMarkdown>{copilotAnswer.answer}</ReactMarkdown>
+                        </div>
+                        {copilotAnswer.citations.length > 0 && (
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-primary/20 pt-3">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Sources</span>
+                            {copilotAnswer.citations.map((c, i) => (
+                              <button
+                                key={i}
+                                title={c.note}
+                                onClick={() => jumpToCitation(c.ref)}
+                                className="rounded-full border border-primary/30 bg-background px-2 py-0.5 font-mono text-[10px] text-primary hover:bg-primary/10"
+                              >
+                                {c.ref}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -813,7 +908,12 @@ function FindPage() {
 
                 <TabsContent value="documentation" className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">{documentation ? `Generated ${new Date(documentation.generated_at).toLocaleString()}` : ""}</div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {documentation ? `Generated ${new Date(documentation.generated_at).toLocaleString()}` : ""}
+                      {documentation?.stale && (
+                        <Badge variant="outline" className="border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => downloadDocumentation("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
                       <Button size="sm" variant="outline" onClick={() => downloadDocumentation("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
@@ -859,20 +959,18 @@ function FindPage() {
               {credentialAction?.kind === "run" && `Run "${credentialAction.template.name}"`}
               {credentialAction?.kind === "custom" && "Run custom report"}
             </DialogTitle>
-            <DialogDescription>Credentials aren't stored — confirm them to proceed.</DialogDescription>
+            <DialogDescription>
+              {credentialConnector?.category === "File" ? "Nothing is stored server-side — choose the file again to proceed." : "Credentials aren't stored — confirm them to proceed."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {credentialAction?.kind === "custom" && (
-              <div className="rounded-lg bg-secondary/30 px-3 py-2 text-xs italic text-muted-foreground">“{credentialAction.text}”</div>
+              <div className="rounded-lg bg-secondary/30 px-3 py-2 text-xs italic text-muted-foreground">"{credentialAction.text}"</div>
             )}
-            {connector?.fields.map((f) => (
+            {credentialConnector?.fields.filter((f) => !f.hidden).map((f) => (
               <div key={f.key}>
                 <Label>{f.label}</Label>
-                <Input
-                  type={f.type === "number" ? "number" : f.type}
-                  value={credentialFields[f.key] ?? ""}
-                  onChange={(e) => setCredentialFields({ ...credentialFields, [f.key]: e.target.value })}
-                />
+                <FieldInput field={f} value={credentialFields[f.key] ?? ""} onChange={(key, val) => setCredentialFields((prev) => ({ ...prev, [key]: val }))} />
               </div>
             ))}
             {credentialAction?.kind === "run" && credentialAction.template.filters.map((f) => (

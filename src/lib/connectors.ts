@@ -1,8 +1,8 @@
-import { Database, type LucideIcon } from "lucide-react";
+import { Database, FileUp, type LucideIcon } from "lucide-react";
 
-/** Only one connector today (Oracle) — this stays a lookup so a second one drops in cleanly later. */
 export const CONNECTOR_ICON: Record<string, LucideIcon> = {
   oracle: Database,
+  file: FileUp,
 };
 
 export function iconFor(connectorId?: string | null): LucideIcon {

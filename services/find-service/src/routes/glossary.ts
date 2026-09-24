@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { supabaseAdmin } from "../supabaseAdmin";
 import { requireAuth, type AuthedRequest } from "../auth";
-import { loadLatestSchema } from "../schema/loadLatest";
+import { loadLatestSchema, getLastCrawledAt, isStale } from "../schema/loadLatest";
 import { generateGlossary } from "../docs/glossary";
 
 export function registerGlossaryRoutes(app: FastifyInstance) {
@@ -47,14 +47,17 @@ export function registerGlossaryRoutes(app: FastifyInstance) {
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data) return data;
+    if (data) {
+      const lastCrawledAt = await getLastCrawledAt(orgId, id);
+      return { ...data, stale: isStale(data.generated_at, lastCrawledAt) };
+    }
 
     const built = await buildAndStore(orgId, id, sessionId);
     if (!built) {
       reply.code(200);
       return { unavailable: true, reason: "ANTHROPIC_API_KEY not configured, or no crawled schema yet" };
     }
-    return built;
+    return { ...built, stale: false };
   });
 
   app.post<{ Params: { id: string } }>("/connections/:id/glossary/regenerate", async (request, reply) => {
@@ -64,6 +67,6 @@ export function registerGlossaryRoutes(app: FastifyInstance) {
       reply.code(200);
       return { unavailable: true, reason: "ANTHROPIC_API_KEY not configured, or no crawled schema yet" };
     }
-    return built;
+    return { ...built, stale: false };
   });
 }

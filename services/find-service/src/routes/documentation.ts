@@ -3,7 +3,7 @@ import { supabaseAdmin } from "../supabaseAdmin";
 import { requireAuth, type AuthedRequest } from "../auth";
 import { renderTechnicalMarkdown } from "../docs/technicalDoc";
 import { generateFunctionalNarrative } from "../docs/functionalDoc";
-import { loadLatestSchema } from "../schema/loadLatest";
+import { loadLatestSchema, getLastCrawledAt, isStale } from "../schema/loadLatest";
 
 export function registerDocumentationRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -48,12 +48,17 @@ export function registerDocumentationRoutes(app: FastifyInstance) {
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data) return data;
-    return buildAndStore(orgId, id, sessionId);
+    if (data) {
+      const lastCrawledAt = await getLastCrawledAt(orgId, id);
+      return { ...data, stale: isStale(data.generated_at, lastCrawledAt) };
+    }
+    const built = await buildAndStore(orgId, id, sessionId);
+    return { ...built, stale: false };
   });
 
   app.post<{ Params: { id: string } }>("/connections/:id/documentation/regenerate", async (request) => {
     const { orgId, sessionId } = request as AuthedRequest;
-    return buildAndStore(orgId, request.params.id, sessionId);
+    const built = await buildAndStore(orgId, request.params.id, sessionId);
+    return { ...built, stale: false };
   });
 }
