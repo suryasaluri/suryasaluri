@@ -51,6 +51,14 @@ function labels(json: unknown): string[] {
   return Array.isArray(json) ? (json as string[]) : [];
 }
 
+/** A plain-language stand-in for a raw confidence score — the number still shows as a bar, but the word is what a non-technical reader actually needs. */
+function confidenceLabel(score: number): string {
+  if (score >= 0.9) return "Very confident";
+  if (score >= 0.75) return "Confident";
+  if (score >= 0.5) return "Somewhat confident";
+  return "Low confidence";
+}
+
 /** The credential fields a fresh test/crawl/report run needs — password is never stored, so every action asks for it again. */
 type CredentialActionInput =
   | { kind: "test" }
@@ -691,17 +699,23 @@ function FindPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between gap-2">
-                        {glossary.stale ? (
-                          <Badge variant="outline" className="border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
-                        ) : <span />}
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
-                          <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
-                          <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
-                            {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
-                          </Button>
-                        </div>
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+                        <p className="text-sm text-foreground">
+                          We explained <strong>{glossary.terms.length}</strong> column{glossary.terms.length === 1 ? "" : "s"} in plain English
+                          {glossary.synonym_groups.length > 0 && <>, found <strong>{glossary.synonym_groups.length}</strong> pair{glossary.synonym_groups.length === 1 ? "" : "s"} that mean the same thing</>}
+                          {schema && schema.unconstrainedReferences.length > 0 && <>, and flagged <strong>{schema.unconstrainedReferences.length}</strong> possible missing link{schema.unconstrainedReferences.length === 1 ? "" : "s"}</>}.
+                        </p>
+                        {glossary.stale && (
+                          <Badge variant="outline" className="mt-2 border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("md")}><Download className="mr-2 h-3 w-3" /> Markdown</Button>
+                        <Button size="sm" variant="outline" onClick={() => downloadGlossary("pdf")}><Download className="mr-2 h-3 w-3" /> PDF</Button>
+                        <Button size="sm" variant="outline" onClick={() => regenerateGlossary.mutate()} disabled={regenerateGlossary.isPending}>
+                          {regenerateGlossary.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                        </Button>
                       </div>
 
                       {!glossary.terms.length ? (
@@ -713,7 +727,7 @@ function FindPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-mono font-medium">{t.table}.{t.column}</span>
                                 <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">{t.term}</Badge>
-                                {t.isDerived && <Badge variant="outline" className="text-[10px]">derived</Badge>}
+                                {t.isDerived && <Badge variant="outline" className="border-warning/40 text-[10px] text-warning">Calculated, not typed in</Badge>}
                               </div>
                               <div className="mt-1 text-muted-foreground">{t.definition}</div>
                               {t.isDerived && t.derivationLogic && <div className="mt-1 font-mono text-[11px] text-muted-foreground">= {t.derivationLogic}</div>}
@@ -724,7 +738,8 @@ function FindPage() {
 
                       {glossary.synonym_groups.length > 0 && (
                         <div>
-                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Same concept, different names</div>
+                          <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Same thing, different names</div>
+                          <p className="mb-2 text-xs text-muted-foreground">If you ever rename one of these, rename the other too — they're tracking the same value.</p>
                           <div className="space-y-1.5">
                             {glossary.synonym_groups.map((sg, i) => (
                               <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
@@ -739,11 +754,12 @@ function FindPage() {
 
                       {schema && schema.unconstrainedReferences.length > 0 && (
                         <div>
-                          <div className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Link2Off className="h-3.5 w-3.5" /> Unconstrained references</div>
+                          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Link2Off className="h-3.5 w-3.5" /> Possible missing links</div>
+                          <p className="mb-2 text-xs text-muted-foreground">These columns look like they should point at another table, but nothing enforces it — worth double-checking nothing referenced here was deleted by mistake.</p>
                           <div className="space-y-1.5">
                             {schema.unconstrainedReferences.map((r, i) => (
                               <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 font-mono text-xs">
-                                <span>{r.table}.{r.column}</span> <span className="text-muted-foreground">looks like a reference to</span> <span>{r.likelyTargetTable}</span> <span className="text-muted-foreground">— no FK constraint enforces it</span>
+                                <span>{r.table}.{r.column}</span> <span className="text-muted-foreground">looks like a reference to</span> <span>{r.likelyTargetTable}</span>
                               </div>
                             ))}
                           </div>
@@ -765,39 +781,53 @@ function FindPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-start justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5">
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-display text-2xl font-bold capitalize">{domain.domain.replace(/_/g, " ")}</span>
-                            <span className="font-mono text-sm text-muted-foreground">{Math.round(domain.confidence * 100)}% confidence</span>
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs uppercase tracking-wider text-muted-foreground">This looks like</div>
+                            <div className="mt-1 font-display text-2xl font-bold capitalize sm:text-3xl">{domain.domain.replace(/_/g, " ")}</div>
                           </div>
-                          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{domain.rationale}</p>
+                          <Button size="sm" variant="outline" onClick={() => regenerateDomain.mutate()} disabled={regenerateDomain.isPending}>
+                            {regenerateDomain.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
+                          </Button>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => regenerateDomain.mutate()} disabled={regenerateDomain.isPending}>
-                          {regenerateDomain.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Regenerate
-                        </Button>
+                        <div className="mt-3 flex items-center gap-2">
+                          <div className="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-secondary/40">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(domain.confidence * 100)}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-primary">{confidenceLabel(domain.confidence)}</span>
+                        </div>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{domain.rationale}</p>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-lg border border-border p-4">
-                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Per-table tags</div>
-                          <div className="space-y-1.5">
-                            {Object.entries(domain.table_domains).map(([table, tag]) => (
-                              <div key={table} className="flex items-center justify-between font-mono text-xs">
-                                <span>{table}</span>
-                                <Badge variant="outline" className={/system/i.test(tag) ? "text-muted-foreground" : "border-primary/40 text-primary"}>{tag}</Badge>
-                              </div>
-                            ))}
+
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-muted-foreground">
+                            Show technical detail <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg border border-border p-4">
+                            <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Per-table tags</div>
+                            <div className="space-y-1.5">
+                              {Object.entries(domain.table_domains).map(([table, tag]) => (
+                                <div key={table} className="flex items-center justify-between font-mono text-xs">
+                                  <span>{table}</span>
+                                  <Badge variant="outline" className={/system/i.test(tag) ? "text-muted-foreground" : "border-primary/40 text-primary"}>{tag}</Badge>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                        <div className="rounded-lg border border-border p-4">
-                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Signals</div>
-                          <div className="space-y-2 text-xs">
-                            <div><span className="text-muted-foreground">Tables: </span>{domain.signals.tables.join(", ") || "—"}</div>
-                            <div><span className="text-muted-foreground">Columns: </span>{domain.signals.columns.join(", ") || "—"}</div>
-                            {domain.signals.values.map((v, i) => <div key={i} className="text-muted-foreground">{v}</div>)}
+                          <div className="rounded-lg border border-border p-4">
+                            <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Signals</div>
+                            <div className="space-y-2 text-xs">
+                              <div><span className="text-muted-foreground">Tables: </span>{domain.signals.tables.join(", ") || "—"}</div>
+                              <div><span className="text-muted-foreground">Columns: </span>{domain.signals.columns.join(", ") || "—"}</div>
+                              {domain.signals.values.map((v, i) => <div key={i} className="text-muted-foreground">{v}</div>)}
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </>
                   )}
                 </TabsContent>
@@ -926,20 +956,32 @@ function FindPage() {
                     <div className="p-6 text-center text-sm text-muted-foreground">Generating documentation…</div>
                   ) : (
                     <>
-                      <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-background/40 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
-                        <ReactMarkdown>{documentation?.technical_markdown ?? ""}</ReactMarkdown>
-                      </div>
-                      {documentation?.functional_markdown && (
-                        <div>
-                          <div className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-primary"><Sparkles className="h-3.5 w-3.5" /> AI functional narrative</div>
-                          <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-primary/30 bg-primary/5 p-4">
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+                        <div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider text-primary"><Sparkles className="h-3.5 w-3.5" /> In plain English</div>
+                        {documentation?.functional_markdown ? (
+                          <div className="prose prose-invert prose-sm max-w-none">
                             <ReactMarkdown>{documentation.functional_markdown}</ReactMarkdown>
                           </div>
-                        </div>
-                      )}
-                      {!documentation?.functional_markdown && (
-                        <div className="text-xs text-muted-foreground">No AI functional narrative — set <code className="rounded bg-muted px-1 py-0.5">ANTHROPIC_API_KEY</code> on find-service to enable it.</div>
-                      )}
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            This connection has <strong>{schema?.tables.length ?? 0} tables</strong> and <strong>{schema?.relationships.length ?? 0} relationships</strong> between them.
+                            {" "}Set <code className="rounded bg-muted px-1 py-0.5 text-xs">ANTHROPIC_API_KEY</code> on find-service for a full plain-English write-up here — the technical detail below still works without it.
+                          </p>
+                        )}
+                      </div>
+
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-muted-foreground">
+                            Show full technical documentation <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3">
+                          <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-background/40 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
+                            <ReactMarkdown>{documentation?.technical_markdown ?? ""}</ReactMarkdown>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </>
                   )}
                 </TabsContent>
