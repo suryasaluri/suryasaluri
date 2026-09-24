@@ -21,7 +21,7 @@ import {
   BookOpen, Bot, Download, AlertTriangle, Link2Off,
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
-import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv } from "@/lib/exportDocs";
+import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv, downloadReportPdf, downloadReportDoc } from "@/lib/exportDocs";
 import { RelationshipDiagram } from "@/components/RelationshipDiagram";
 import {
   findApi, streamCrawl, type ConnectionRecord, type TableDef,
@@ -50,6 +50,9 @@ function errMsg(e: unknown): string {
 function labels(json: unknown): string[] {
   return Array.isArray(json) ? (json as string[]) : [];
 }
+
+const STRING_TYPE_RE = /^(VARCHAR2|CHAR|NVARCHAR2|NCHAR)/i;
+const NUMERIC_TYPE_RE = /^(NUMBER|FLOAT|BINARY_DOUBLE|BINARY_FLOAT)/i;
 
 /** A plain-language stand-in for a raw confidence score — the number still shows as a bar, but the word is what a non-technical reader actually needs. */
 function confidenceLabel(score: number): string {
@@ -142,8 +145,10 @@ function ReportResultView({ outcome, filename }: { outcome: ReportOutcome; filen
       <pre className="overflow-x-auto rounded-lg bg-secondary/40 p-3 font-mono text-[11px] text-muted-foreground">{outcome.sql}</pre>
       <CostPanel estimate={outcome.estimate} cached={outcome.status === "success" && outcome.cached} latencyMs={outcome.status === "success" ? outcome.latencyMs : undefined} />
       {outcome.status === "success" && rows.length > 0 && (
-        <div className="flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => downloadReportCsv(`${filename}.csv`, rows)}><Download className="mr-2 h-3 w-3" /> Download CSV</Button>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => downloadReportCsv(`${filename}.csv`, rows)}><Download className="mr-2 h-3 w-3" /> CSV</Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReportPdf(`${filename}.pdf`, filename, outcome.sql, rows)}><Download className="mr-2 h-3 w-3" /> PDF</Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReportDoc(`${filename}.doc`, filename, outcome.sql, rows)}><Download className="mr-2 h-3 w-3" /> Document</Button>
         </div>
       )}
       {outcome.status === "success" && (
@@ -332,6 +337,12 @@ function FindPage() {
   const [reportOutcomes, setReportOutcomes] = useState<Record<string, ReportOutcome>>({});
   const [customText, setCustomText] = useState("");
   const [customOutcome, setCustomOutcome] = useState<ReportOutcome | null>(null);
+
+  // --- click-to-build report: pick real attributes instead of typing ---
+  const [builderTable, setBuilderTable] = useState<string | null>(null);
+  const [builderGroupBy, setBuilderGroupBy] = useState<string | null>(null);
+  const [builderMeasure, setBuilderMeasure] = useState<string | null>(null);
+  const [builderAgg, setBuilderAgg] = useState<"count" | "sum" | "avg">("count");
 
   const runReport = useMutation({
     mutationFn: (vars: { id: string; templateId: string; fields: Record<string, string>; filterValues: Record<string, string> }) =>
@@ -892,6 +903,94 @@ function FindPage() {
                 </TabsContent>
 
                 <TabsContent value="reports" className="space-y-4">
+                  <div className="rounded-xl border border-border p-5">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h4 className="font-medium">Build a report</h4>
+                      <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">click, don't type</Badge>
+                    </div>
+                    <p className="mb-3 text-xs text-muted-foreground">Pick a table, then click the columns to group and measure by — no typing required.</p>
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {schema?.tables.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => { setBuilderTable(t.name); setBuilderGroupBy(null); setBuilderMeasure(null); }}
+                          className={`rounded-full border px-3 py-1 font-mono text-xs ${builderTable === t.name ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                        >
+                          {t.name}
+                        </button>
+                      ))}
+                    </div>
+                    {builderTable && (() => {
+                      const table = schema?.tables.find((t) => t.name === builderTable);
+                      if (!table) return null;
+                      const groupCols = table.columns.filter((c) => STRING_TYPE_RE.test(c.dataType));
+                      const measureCols = table.columns.filter((c) => NUMERIC_TYPE_RE.test(c.dataType) && !table.primaryKey.includes(c.name));
+                      return (
+                        <div className="space-y-3 rounded-lg bg-secondary/30 p-3">
+                          <div>
+                            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Group by</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {groupCols.length === 0 && <span className="text-xs text-muted-foreground">No text columns on this table.</span>}
+                              {groupCols.map((c) => (
+                                <button
+                                  key={c.name}
+                                  onClick={() => setBuilderGroupBy(builderGroupBy === c.name ? null : c.name)}
+                                  className={`rounded-full border px-3 py-1 font-mono text-xs ${builderGroupBy === c.name ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Measure (optional — leave blank to count rows)</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {measureCols.length === 0 && <span className="text-xs text-muted-foreground">No numeric columns on this table.</span>}
+                              {measureCols.map((c) => (
+                                <button
+                                  key={c.name}
+                                  onClick={() => { const next = builderMeasure === c.name ? null : c.name; setBuilderMeasure(next); setBuilderAgg(next ? "sum" : "count"); }}
+                                  className={`rounded-full border px-3 py-1 font-mono text-xs ${builderMeasure === c.name ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {builderMeasure && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aggregate</span>
+                              {(["sum", "avg"] as const).map((agg) => (
+                                <button
+                                  key={agg}
+                                  onClick={() => setBuilderAgg(agg)}
+                                  className={`rounded-full border px-2.5 py-0.5 text-xs ${builderAgg === agg ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                                >
+                                  {agg === "sum" ? "Total" : "Average"}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <Button
+                            size="sm"
+                            disabled={!builderGroupBy}
+                            onClick={() => {
+                              if (!active || !builderGroupBy) return;
+                              const agg = builderMeasure ? builderAgg : "count";
+                              const text = agg === "count"
+                                ? `count of ${builderTable} grouped by ${builderTable}.${builderGroupBy}`
+                                : `${agg === "sum" ? "total" : "average"} ${builderTable}.${builderMeasure} grouped by ${builderTable}.${builderGroupBy}`;
+                              setCustomText(text);
+                              openCredentialPrompt(active, { kind: "custom", text });
+                            }}
+                          >
+                            <Play className="mr-2 h-3 w-3" /> Run this report
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   <div className="rounded-xl border border-border p-5">
                     <div className="mb-1 flex items-center gap-2">
                       <h4 className="font-medium">Ask for a report</h4>
