@@ -23,6 +23,7 @@ function statusText(statusFields: StatusFieldCandidate[]): string {
 }
 
 export type CopilotAnswer = { answer: string; citations: Citation[] };
+export type AnswerCopilotQuestionResult = { answer: CopilotAnswer; message: Anthropic.Message };
 
 const ANSWER_TOOL: Anthropic.Tool = {
   name: "answer_with_citations",
@@ -66,7 +67,8 @@ export async function answerCopilotQuestion(
   glossary: Glossary | null,
   technicalMarkdown: string | null,
   functionalMarkdown: string | null,
-): Promise<CopilotAnswer | null> {
+  maxTokens: number,
+): Promise<AnswerCopilotQuestionResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (!schema.tables.length) return null;
@@ -74,7 +76,7 @@ export async function answerCopilotQuestion(
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     tools: [ANSWER_TOOL],
     tool_choice: { type: "tool", name: "answer_with_citations" },
     messages: [
@@ -104,7 +106,10 @@ export async function answerCopilotQuestion(
   const input = toolUse.input as Partial<CopilotAnswer>;
   if (!input.answer) return null;
   return {
-    answer: input.answer,
-    citations: filterValidCitations(Array.isArray(input.citations) ? input.citations : [], schema),
+    answer: {
+      answer: input.answer,
+      citations: filterValidCitations(Array.isArray(input.citations) ? input.citations : [], schema),
+    },
+    message,
   };
 }

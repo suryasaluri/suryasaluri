@@ -5,6 +5,8 @@ import { requireAuth, type AuthedRequest } from "../auth";
 import { loadLatestSchema } from "../schema/loadLatest";
 import { answerCopilotQuestion } from "../copilot/ask";
 import type { Glossary } from "../docs/glossary";
+import { getOrgAiSettings, resolveMaxTokens } from "../ai/maxTokensCap";
+import { recordAiUsage } from "../ai/usage";
 
 const askSchema = z.object({ question: z.string().min(1) });
 
@@ -43,6 +45,8 @@ export function registerCopilotRoutes(app: FastifyInstance) {
 
     const glossary: Glossary | null = glossaryRow ? { terms: glossaryRow.terms, synonymGroups: glossaryRow.synonym_groups } : null;
 
+    const orgAiSettings = await getOrgAiSettings(orgId);
+    const { maxTokens, capApplied } = resolveMaxTokens("copilot", orgAiSettings);
     const result = await answerCopilotQuestion(
       parsed.data.question,
       schema,
@@ -50,6 +54,7 @@ export function registerCopilotRoutes(app: FastifyInstance) {
       glossary,
       docRow?.technical_markdown ?? null,
       docRow?.functional_markdown ?? null,
+      maxTokens,
     );
 
     if (!result) {
@@ -57,15 +62,17 @@ export function registerCopilotRoutes(app: FastifyInstance) {
       return { unavailable: true, reason: "ANTHROPIC_API_KEY not configured, or no crawled schema yet" };
     }
 
+    await recordAiUsage({ orgId, sessionId, dataSourceId: id, feature: "copilot", message: result.message, maxTokensRequested: maxTokens, capApplied });
+
     await supabaseAdmin().from("audit_logs").insert({
       org_id: orgId,
       session_id: sessionId ?? null,
       action: "copilot.asked",
       resource_type: "data_source",
       resource_id: id,
-      details: { question: parsed.data.question, citationCount: result.citations.length },
+      details: { question: parsed.data.question, citationCount: result.answer.citations.length },
     });
 
-    return result;
+    return result.answer;
   });
 }

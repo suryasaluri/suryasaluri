@@ -54,18 +54,22 @@ const CLASSIFY_TOOL: Anthropic.Tool = {
   },
 };
 
+export type ClassifyDomainResult = { classification: DomainClassification; message: Anthropic.Message };
+
 /**
  * AI domain classification over a crawled schema. Tags each table rather
  * than forcing one global label — a schema mixes a core domain with
  * generic system tables (audit_log, sessions), and callers (report
  * suggestion in particular) need that distinction, not just a headline.
  * Returns null (not an error) without ANTHROPIC_API_KEY, same convention
- * as generateFunctionalNarrative.
+ * as generateFunctionalNarrative. Returns the raw message alongside the
+ * parsed result so the caller can record its token usage/cost.
  */
 export async function classifyDomain(
   schema: NormalizedSchema,
   statusFields: StatusFieldCandidate[],
-): Promise<DomainClassification | null> {
+  maxTokens: number,
+): Promise<ClassifyDomainResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (!schema.tables.length) return null;
@@ -73,7 +77,7 @@ export async function classifyDomain(
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     tools: [CLASSIFY_TOOL],
     tool_choice: { type: "tool", name: "classify_domain" },
     messages: [
@@ -96,14 +100,17 @@ export async function classifyDomain(
   const input = toolUse.input as DomainClassification;
   if (!input?.domain) return null;
   return {
-    domain: input.domain,
-    confidence: typeof input.confidence === "number" ? input.confidence : 0,
-    rationale: input.rationale ?? "",
-    tableDomains: input.tableDomains ?? {},
-    signals: {
-      tables: input.signals?.tables ?? [],
-      columns: input.signals?.columns ?? [],
-      values: input.signals?.values ?? [],
+    classification: {
+      domain: input.domain,
+      confidence: typeof input.confidence === "number" ? input.confidence : 0,
+      rationale: input.rationale ?? "",
+      tableDomains: input.tableDomains ?? {},
+      signals: {
+        tables: input.signals?.tables ?? [],
+        columns: input.signals?.columns ?? [],
+        values: input.signals?.values ?? [],
+      },
     },
+    message,
   };
 }

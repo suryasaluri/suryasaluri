@@ -73,14 +73,22 @@ const GLOSSARY_TOOL: Anthropic.Tool = {
   },
 };
 
+export type GenerateGlossaryResult = { glossary: Glossary; message: Anthropic.Message };
+
 /**
  * AI-generated business glossary — the reconstructed "logic" layer: what a
  * column is for (not just what it's named), which values are derived rather
  * than stored, and which differently-named columns across tables actually
  * mean the same thing. Returns null (not an error) without
  * ANTHROPIC_API_KEY, same convention as classifyDomain / generateFunctionalNarrative.
+ * Returns the raw message alongside the parsed glossary so the caller can
+ * record its token usage/cost.
  */
-export async function generateGlossary(schema: NormalizedSchema, statusFields: StatusFieldCandidate[]): Promise<Glossary | null> {
+export async function generateGlossary(
+  schema: NormalizedSchema,
+  statusFields: StatusFieldCandidate[],
+  maxTokens: number,
+): Promise<GenerateGlossaryResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (!schema.tables.length) return null;
@@ -92,7 +100,7 @@ export async function generateGlossary(schema: NormalizedSchema, statusFields: S
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     tools: [GLOSSARY_TOOL],
     tool_choice: { type: "tool", name: "generate_glossary" },
     messages: [
@@ -115,7 +123,10 @@ export async function generateGlossary(schema: NormalizedSchema, statusFields: S
 
   const input = toolUse.input as Partial<Glossary>;
   return {
-    terms: Array.isArray(input.terms) ? input.terms : [],
-    synonymGroups: Array.isArray(input.synonymGroups) ? input.synonymGroups.filter((g) => (g.members?.length ?? 0) >= 2) : [],
+    glossary: {
+      terms: Array.isArray(input.terms) ? input.terms : [],
+      synonymGroups: Array.isArray(input.synonymGroups) ? input.synonymGroups.filter((g) => (g.members?.length ?? 0) >= 2) : [],
+    },
+    message,
   };
 }

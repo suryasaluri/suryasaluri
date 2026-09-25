@@ -10,6 +10,7 @@ import { registerGlossaryRoutes } from "./routes/glossary";
 import { registerCopilotRoutes } from "./routes/copilot";
 import { registerReportRoutes } from "./routes/reports";
 import { registerUsageRoutes } from "./routes/usage";
+import { registerAiUsageRoutes } from "./routes/aiUsage";
 
 // Default Fastify body limit (1MB) is too small for the file-upload
 // connector — a real export's base64-encoded content routinely runs to
@@ -38,6 +39,7 @@ app.register(async (instance) => registerGlossaryRoutes(instance));
 app.register(async (instance) => registerCopilotRoutes(instance));
 app.register(async (instance) => registerReportRoutes(instance));
 app.register(async (instance) => registerUsageRoutes(instance));
+app.register(async (instance) => registerAiUsageRoutes(instance));
 
 const port = Number(process.env.PORT ?? 4001);
 app

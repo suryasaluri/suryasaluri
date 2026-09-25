@@ -4,6 +4,8 @@ import { requireAuth, type AuthedRequest } from "../auth";
 import { renderTechnicalMarkdown } from "../docs/technicalDoc";
 import { generateFunctionalNarrative } from "../docs/functionalDoc";
 import { loadLatestSchema, getLastCrawledAt, isStale } from "../schema/loadLatest";
+import { getOrgAiSettings, resolveMaxTokens } from "../ai/maxTokensCap";
+import { recordAiUsage } from "../ai/usage";
 
 export function registerDocumentationRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -11,7 +13,13 @@ export function registerDocumentationRoutes(app: FastifyInstance) {
   async function buildAndStore(orgId: string, dataSourceId: string, sessionId?: string) {
     const { schema, statusFields } = await loadLatestSchema(orgId, dataSourceId);
     const technical = renderTechnicalMarkdown(schema, statusFields);
-    const functional = await generateFunctionalNarrative(schema, statusFields);
+    const orgAiSettings = await getOrgAiSettings(orgId);
+    const { maxTokens, capApplied } = resolveMaxTokens("functional_documentation", orgAiSettings);
+    const functionalResult = await generateFunctionalNarrative(schema, statusFields, maxTokens);
+    const functional = functionalResult?.narrative ?? null;
+    if (functionalResult) {
+      await recordAiUsage({ orgId, sessionId, dataSourceId, feature: "functional_documentation", message: functionalResult.message, maxTokensRequested: maxTokens, capApplied });
+    }
 
     const { data, error } = await supabaseAdmin()
       .from("documentation_snapshots")

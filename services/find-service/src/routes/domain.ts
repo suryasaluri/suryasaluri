@@ -3,14 +3,21 @@ import { supabaseAdmin } from "../supabaseAdmin";
 import { requireAuth, type AuthedRequest } from "../auth";
 import { loadLatestSchema } from "../schema/loadLatest";
 import { classifyDomain } from "../domain/classifier";
+import { getOrgAiSettings, resolveMaxTokens } from "../ai/maxTokensCap";
+import { recordAiUsage } from "../ai/usage";
 
 export function registerDomainRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
   async function buildAndStore(orgId: string, dataSourceId: string, sessionId?: string) {
     const { schema, statusFields } = await loadLatestSchema(orgId, dataSourceId);
-    const classification = await classifyDomain(schema, statusFields);
-    if (!classification) return null;
+    const orgAiSettings = await getOrgAiSettings(orgId);
+    const { maxTokens, capApplied } = resolveMaxTokens("domain_classification", orgAiSettings);
+    const result = await classifyDomain(schema, statusFields, maxTokens);
+    if (!result) return null;
+    const { classification, message } = result;
+
+    await recordAiUsage({ orgId, sessionId, dataSourceId, feature: "domain_classification", message, maxTokensRequested: maxTokens, capApplied });
 
     const { data, error } = await supabaseAdmin()
       .from("domain_classifications")

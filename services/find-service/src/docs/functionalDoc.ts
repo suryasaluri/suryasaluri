@@ -41,6 +41,8 @@ const NARRATIVE_TOOL: Anthropic.Tool = {
   },
 };
 
+export type GenerateFunctionalNarrativeResult = { narrative: string; message: Anthropic.Message };
+
 /**
  * Business-relationship narrative drafted by Claude from the normalized
  * schema, grounded with citations back to the specific table/column/constraint
@@ -49,12 +51,14 @@ const NARRATIVE_TOOL: Anthropic.Tool = {
  * "Sources" section, the same way a DeepWiki-style answer links every claim
  * back to something that actually exists rather than asking to be trusted.
  * Returns null (not an error) when ANTHROPIC_API_KEY isn't configured — the
- * technical doc still stands on its own without it.
+ * technical doc still stands on its own without it. Returns the raw message
+ * alongside the narrative so the caller can record its token usage/cost.
  */
 export async function generateFunctionalNarrative(
   schema: NormalizedSchema,
   statusFields: StatusFieldCandidate[],
-): Promise<string | null> {
+  maxTokens: number,
+): Promise<GenerateFunctionalNarrativeResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (!schema.tables.length) return null;
@@ -62,7 +66,7 @@ export async function generateFunctionalNarrative(
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 1500,
+    max_tokens: maxTokens,
     tools: [NARRATIVE_TOOL],
     tool_choice: { type: "tool", name: "draft_functional_narrative" },
     messages: [
@@ -88,8 +92,8 @@ export async function generateFunctionalNarrative(
   if (!input.narrative) return null;
 
   const citations = filterValidCitations(Array.isArray(input.citations) ? input.citations : [], schema);
-  if (!citations.length) return input.narrative;
+  if (!citations.length) return { narrative: input.narrative, message };
 
   const sources = citations.map((c) => `\`${c.ref}\`${c.note ? ` — ${c.note}` : ""}`).join(", ");
-  return `${input.narrative}\n\n## Sources\n\n${sources}`;
+  return { narrative: `${input.narrative}\n\n## Sources\n\n${sources}`, message };
 }

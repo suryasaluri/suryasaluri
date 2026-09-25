@@ -39,21 +39,28 @@ const PARSE_TOOL: Anthropic.Tool = {
   },
 };
 
+export type ParseNaturalLanguageReportResult = { spec: ReportSpec; message: Anthropic.Message };
+
 /**
  * Drafts a ReportSpec from free text via Claude's structured tool-use
  * output. This draft is NEVER trusted directly — every field still goes
  * through validateSpec (spec.ts) against the real schema before any SQL is
  * built, exactly like a suggested template's spec. Returns null (not an
- * error) without ANTHROPIC_API_KEY.
+ * error) without ANTHROPIC_API_KEY. Returns the raw message alongside the
+ * spec so the caller can record its token usage/cost.
  */
-export async function parseNaturalLanguageReport(text: string, schema: NormalizedSchema): Promise<ReportSpec | null> {
+export async function parseNaturalLanguageReport(
+  text: string,
+  schema: NormalizedSchema,
+  maxTokens: number,
+): Promise<ParseNaturalLanguageReportResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 512,
+    max_tokens: maxTokens,
     tools: [PARSE_TOOL],
     tool_choice: { type: "tool", name: "draft_report_spec" },
     messages: [
@@ -77,12 +84,15 @@ export async function parseNaturalLanguageReport(text: string, schema: Normalize
   if (!input.baseTable || !input.groupBy || !input.aggregation) return null;
 
   return {
-    baseTable: input.baseTable,
-    joinTable: input.joinTable,
-    groupBy: input.groupBy,
-    aggregation: input.aggregation,
-    aggregationColumn: input.aggregationColumn,
-    filters: input.filters ?? [],
-    maxRows: 0, // clamped server-side before use, never trusted from a draft
+    spec: {
+      baseTable: input.baseTable,
+      joinTable: input.joinTable,
+      groupBy: input.groupBy,
+      aggregation: input.aggregation,
+      aggregationColumn: input.aggregationColumn,
+      filters: input.filters ?? [],
+      maxRows: 0, // clamped server-side before use, never trusted from a draft
+    },
+    message,
   };
 }

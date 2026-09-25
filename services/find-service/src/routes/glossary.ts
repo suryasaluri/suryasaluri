@@ -3,14 +3,21 @@ import { supabaseAdmin } from "../supabaseAdmin";
 import { requireAuth, type AuthedRequest } from "../auth";
 import { loadLatestSchema, getLastCrawledAt, isStale } from "../schema/loadLatest";
 import { generateGlossary } from "../docs/glossary";
+import { getOrgAiSettings, resolveMaxTokens } from "../ai/maxTokensCap";
+import { recordAiUsage } from "../ai/usage";
 
 export function registerGlossaryRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
   async function buildAndStore(orgId: string, dataSourceId: string, sessionId?: string) {
     const { schema, statusFields } = await loadLatestSchema(orgId, dataSourceId);
-    const glossary = await generateGlossary(schema, statusFields);
-    if (!glossary) return null;
+    const orgAiSettings = await getOrgAiSettings(orgId);
+    const { maxTokens, capApplied } = resolveMaxTokens("glossary", orgAiSettings);
+    const result = await generateGlossary(schema, statusFields, maxTokens);
+    if (!result) return null;
+    const { glossary, message } = result;
+
+    await recordAiUsage({ orgId, sessionId, dataSourceId, feature: "glossary", message, maxTokensRequested: maxTokens, capApplied });
 
     const { data, error } = await supabaseAdmin()
       .from("glossary_snapshots")

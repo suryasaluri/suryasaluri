@@ -10,6 +10,8 @@ import { parseNaturalLanguageReport } from "../reports/nlParse";
 import { cacheKey, getCached, setCached } from "../reports/cache";
 import { evaluateEstimate } from "../reports/costControl";
 import type { ReportSpec, ReportTemplate, ReportOutcome, AppliedFilter } from "../reports/types";
+import { getOrgAiSettings, resolveMaxTokens } from "../ai/maxTokensCap";
+import { recordAiUsage } from "../ai/usage";
 
 const runSchema = z.object({
   templateId: z.string().min(1),
@@ -157,7 +159,9 @@ export function registerReportRoutes(app: FastifyInstance) {
     }
 
     const { schema } = await loadLatestSchema(orgId, id);
-    const draft = await parseNaturalLanguageReport(parsed.data.text, schema);
+    const orgAiSettings = await getOrgAiSettings(orgId);
+    const { maxTokens, capApplied } = resolveMaxTokens("report_nl_parse", orgAiSettings);
+    const draft = await parseNaturalLanguageReport(parsed.data.text, schema, maxTokens);
     if (!draft) {
       const outcome: ReportOutcome = {
         status: "validation_error",
@@ -166,8 +170,9 @@ export function registerReportRoutes(app: FastifyInstance) {
       };
       return outcome;
     }
+    await recordAiUsage({ orgId, sessionId, dataSourceId: id, feature: "report_nl_parse", message: draft.message, maxTokensRequested: maxTokens, capApplied });
 
-    const spec: ReportSpec = { ...draft, maxRows: DEFAULT_MAX_ROWS };
+    const spec: ReportSpec = { ...draft.spec, maxRows: DEFAULT_MAX_ROWS };
     const outcome = await executeSpec(orgId, sessionId, id, src.connector_id, parsed.data.fields, spec, parsed.data.text, "report.custom_run");
     return outcome;
   });

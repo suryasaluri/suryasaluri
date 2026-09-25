@@ -161,6 +161,25 @@ export type ReportOutcome =
 export type UsageBucket = { totalEvents: number; byAction: { action: string; count: number }[]; recent: { action: string; createdAt: string }[] };
 export type UsageResponse = { total: UsageBucket; session: UsageBucket; sessionId: string | null };
 
+/** Which AI-powered feature a Claude call was for — matches ai/maxTokensCap.ts on the backend. */
+export type AiFeature = "domain_classification" | "glossary" | "functional_documentation" | "copilot" | "report_nl_parse";
+export type AiUsageBucket = {
+  totalTokens: number;
+  totalCostUsd: number;
+  requestCount: number;
+  byFeature: { feature: AiFeature; requestCount: number; totalTokens: number; costUsd: number }[];
+  recent: { feature: AiFeature; model: string; inputTokens: number; outputTokens: number; costUsd: number; createdAt: string }[];
+};
+export type OrgAiSettings = { maxOutputTokens: number | null };
+export type AiUsageResponse = {
+  total: AiUsageBucket;
+  session: AiUsageBucket;
+  sessionId: string | null;
+  settings: OrgAiSettings;
+  featureDefaults: Record<AiFeature, number>;
+  minCapTokens: number;
+};
+
 /** Per-browser-tab id, for the usage report's total-vs-session split. Never used for auth. */
 function getSessionId(): string {
   try {
@@ -239,6 +258,10 @@ export const findApi = {
     request<ReportOutcome>(`/connections/${connectionId}/reports/custom`, { method: "POST", body: JSON.stringify(body) }),
 
   getUsage: () => request<UsageResponse>("/usage"),
+
+  getAiUsage: () => request<AiUsageResponse>("/ai-usage"),
+  updateAiUsageSettings: (maxOutputTokens: number | null) =>
+    request<OrgAiSettings>("/ai-usage/settings", { method: "PUT", body: JSON.stringify({ maxOutputTokens }) }),
 };
 
 type CrawlStreamHandlers = {
