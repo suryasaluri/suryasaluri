@@ -18,7 +18,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Loader2, Trash2, RefreshCw, ChevronDown, Table2, Waypoints, Tags,
   FileText, Sparkles, Plug, ShieldCheck, Brain, BarChart3, Play, Gauge, Ban, Send,
-  BookOpen, Bot, Download, AlertTriangle, Link2Off,
+  BookOpen, Bot, Download, AlertTriangle, Link2Off, KeyRound, Link2,
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
 import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv, downloadReportPdf, downloadReportDoc } from "@/lib/exportDocs";
@@ -1054,9 +1054,15 @@ function FindPage() {
                   {docLoading ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">Generating documentation…</div>
                   ) : (
-                    <>
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-                        <div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider text-primary"><Sparkles className="h-3.5 w-3.5" /> In plain English</div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {/* Functional documentation — the AI-written plain-English narrative */}
+                      <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 p-5">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                            <Sparkles className="h-3.5 w-3.5" /> Functional documentation
+                          </div>
+                          <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">AI-generated</Badge>
+                        </div>
                         {documentation?.functional_markdown ? (
                           <div className="prose prose-invert prose-sm max-w-none">
                             <ReactMarkdown>{documentation.functional_markdown}</ReactMarkdown>
@@ -1064,24 +1070,70 @@ function FindPage() {
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             This connection has <strong>{schema?.tables.length ?? 0} tables</strong> and <strong>{schema?.relationships.length ?? 0} relationships</strong> between them.
-                            {" "}Set <code className="rounded bg-muted px-1 py-0.5 text-xs">ANTHROPIC_API_KEY</code> on find-service for a full plain-English write-up here — the technical detail below still works without it.
+                            {" "}Set <code className="rounded bg-muted px-1 py-0.5 text-xs">ANTHROPIC_API_KEY</code> on find-service for a full plain-English write-up here — the technical detail alongside still works without it.
                           </p>
                         )}
                       </div>
 
-                      <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground">
-                            Show full technical documentation <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-3">
-                          <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-background/40 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
-                            <ReactMarkdown>{documentation?.technical_markdown ?? ""}</ReactMarkdown>
+                      {/* Technical documentation — structured, at-a-glance per-table cards instead of a raw markdown dump */}
+                      <div className="rounded-xl border border-border bg-card p-5">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            <FileText className="h-3.5 w-3.5" /> Technical documentation
                           </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </>
+                          <Badge variant="outline" className="text-[10px]">{schema?.tables.length ?? 0} objects</Badge>
+                        </div>
+                        <div className="grid max-h-[360px] gap-2.5 overflow-y-auto pr-1 sm:grid-cols-2">
+                          {(schema?.tables ?? []).map((t) => {
+                            const statusCount = (schema?.statusFields ?? []).filter((s) => s.table === t.name).length;
+                            return (
+                              <div key={t.name} className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                                <div className="flex items-center gap-1.5">
+                                  <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                  <span className="truncate font-mono text-xs font-semibold">{t.name}</span>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  <Badge variant="outline" className="text-[10px]">{t.columns.length} cols</Badge>
+                                  {t.primaryKey.length > 0 && (
+                                    <Badge variant="outline" className="gap-0.5 text-[10px]"><KeyRound className="h-2.5 w-2.5" />{t.primaryKey.length} PK</Badge>
+                                  )}
+                                  {t.foreignKeys.length > 0 && (
+                                    <Badge variant="outline" className="gap-0.5 text-[10px]"><Link2 className="h-2.5 w-2.5" />{t.foreignKeys.length} FK</Badge>
+                                  )}
+                                  {statusCount > 0 && (
+                                    <Badge variant="outline" className="gap-0.5 text-[10px]"><Tags className="h-2.5 w-2.5" />{statusCount} status</Badge>
+                                  )}
+                                  {(t.sensitivityLabels ?? []).map((l) => (
+                                    <Badge key={l} variant="outline" className={`px-1.5 py-0 text-[10px] ${SENSITIVITY_STYLE[l] ?? ""}`}>{l}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {!!schema?.relationships.length && (
+                          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-3">
+                            {schema.relationships.map((r, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 rounded-full bg-secondary/40 px-2 py-0.5 font-mono text-[10.5px] text-muted-foreground">
+                                <Waypoints className="h-3 w-3 text-primary/70" /> {r.fromTable} → {r.toTable}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <Collapsible className="mt-3">
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground">
+                              Show raw technical Markdown <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-2">
+                            <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-background/40 p-4 [&_table]:w-full [&_th]:text-left [&_code]:font-mono">
+                              <ReactMarkdown>{documentation?.technical_markdown ?? ""}</ReactMarkdown>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
