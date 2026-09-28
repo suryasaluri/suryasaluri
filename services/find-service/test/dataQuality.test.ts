@@ -34,6 +34,18 @@ const schema: NormalizedSchema = {
         { name: "author_id", dataType: "NUMBER", nullable: false }, // declared FK — must not be flagged
         { name: "title_id", dataType: "NUMBER", nullable: false }, // no FK, but "titles" exists — should be flagged
         { name: "external_id", dataType: "VARCHAR2", nullable: true }, // no matching table — must not be flagged
+        { name: "warehouse_id", dataType: "NUMBER", nullable: true }, // "warehouses" exists but has a composite PK — flagged, but no inferable target column
+      ],
+    },
+    {
+      name: "warehouses",
+      objectType: "TABLE",
+      primaryKey: ["region", "code"], // composite PK — no single obvious REFERENCES target
+      foreignKeys: [],
+      rowEstimate: 12,
+      columns: [
+        { name: "region", dataType: "VARCHAR2", nullable: false },
+        { name: "code", dataType: "VARCHAR2", nullable: false },
       ],
     },
   ],
@@ -43,8 +55,12 @@ const schema: NormalizedSchema = {
 describe("detectUnconstrainedReferences", () => {
   const flags = detectUnconstrainedReferences(schema);
 
-  test("flags an *_id column with no FK when a matching table exists", () => {
-    expect(flags).toContainEqual({ table: "order_items", column: "title_id", likelyTargetTable: "titles" });
+  test("flags an *_id column with no FK when a matching table exists, with the target's single-column PK as the likely target column", () => {
+    expect(flags).toContainEqual({ table: "order_items", column: "title_id", likelyTargetTable: "titles", likelyTargetColumn: "id" });
+  });
+
+  test("flags a reference to a table with a composite primary key, but leaves likelyTargetColumn null (needs manual entry)", () => {
+    expect(flags).toContainEqual({ table: "order_items", column: "warehouse_id", likelyTargetTable: "warehouses", likelyTargetColumn: null });
   });
 
   test("does not flag a column already backed by a declared foreign key", () => {

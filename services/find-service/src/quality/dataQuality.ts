@@ -4,6 +4,8 @@ export type UnconstrainedReference = {
   table: string;
   column: string;
   likelyTargetTable: string;
+  /** The target table's own single-column primary key — the obvious REFERENCES target for a recommended FK fix. Null when the target has a composite or missing primary key, meaning the right target column can't be inferred and needs a human to pick it. */
+  likelyTargetColumn: string | null;
 };
 
 function candidateTargetNames(base: string): string[] {
@@ -26,6 +28,7 @@ function candidateTargetNames(base: string): string[] {
  */
 export function detectUnconstrainedReferences(schema: NormalizedSchema): UnconstrainedReference[] {
   const tableByLowerName = new Map(schema.tables.map((t) => [t.name.toLowerCase(), t.name]));
+  const tableByName = new Map(schema.tables.map((t) => [t.name, t]));
   const out: UnconstrainedReference[] = [];
 
   for (const t of schema.tables) {
@@ -40,7 +43,11 @@ export function detectUnconstrainedReferences(schema: NormalizedSchema): Unconst
       const target = candidateTargetNames(base)
         .map((n) => tableByLowerName.get(n))
         .find((n): n is string => !!n && n !== t.name);
-      if (target) out.push({ table: t.name, column: c.name, likelyTargetTable: target });
+      if (!target) continue;
+
+      const targetTable = tableByName.get(target);
+      const likelyTargetColumn = targetTable && targetTable.primaryKey.length === 1 ? targetTable.primaryKey[0] : null;
+      out.push({ table: t.name, column: c.name, likelyTargetTable: target, likelyTargetColumn });
     }
   }
 

@@ -42,4 +42,8 @@ export type SchemaConnectorModule = {
   estimateQueryCost?(fields: Record<string, string>, sql: string): Promise<QueryCostEstimate>;
   /** Executes a validated, already-capped report query and returns its rows. */
   runQuery?(fields: Record<string, string>, sql: string, binds: Record<string, unknown>): Promise<Record<string, unknown>[]>;
+  /** Read-only — runs a `SELECT COUNT(*) ...`-shaped query and returns the count. Used to check whether adding a constraint would be safe before ever writing anything. Optional — a connector with no live database (e.g. the file connector) simply omits it. */
+  countRows?(fields: Record<string, string>, sql: string): Promise<number>;
+  /** Executes schema-mutating DDL (currently only a validated `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY` statement). Optional and deliberately rare — most connectors are read-only by design; only a connector that explicitly implements this can ever write to a customer's schema. */
+  applyDdl?(fields: Record<string, string>, sql: string): Promise<void>;
 };

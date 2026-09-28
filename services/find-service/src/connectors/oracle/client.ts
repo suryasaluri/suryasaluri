@@ -101,6 +101,39 @@ export async function oracleRunQuery(
   }
 }
 
+/** Read-only — runs a caller-built COUNT query (already validated against schema-derived identifiers upstream) and returns the count. Used before ever writing anything. */
+export async function oracleCountRows(fields: Record<string, string>, sql: string): Promise<number> {
+  let conn: oracledb.Connection | undefined;
+  try {
+    conn = await oracledb.getConnection({ user: fields.username, password: fields.password, connectString: connectString(fields) });
+    conn.callTimeout = REPORT_CALL_TIMEOUT_MS;
+    const result = await conn.execute(sql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    const row = (result.rows as { VIOLATING_ROWS: number }[] | undefined)?.[0];
+    return row?.VIOLATING_ROWS ?? 0;
+  } finally {
+    if (conn) await conn.close().catch(() => {});
+  }
+}
+
+/**
+ * Executes schema-mutating DDL — currently only ever called with an
+ * ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY statement built by
+ * quality/fkFix.ts from identifiers re-validated against the live schema
+ * immediately before this runs. Oracle DDL is auto-committing and
+ * self-validating (the ADD CONSTRAINT itself fails if any row would
+ * violate it), so there is no separate commit step and no partial-apply
+ * state to worry about.
+ */
+export async function oracleApplyDdl(fields: Record<string, string>, sql: string): Promise<void> {
+  let conn: oracledb.Connection | undefined;
+  try {
+    conn = await oracledb.getConnection({ user: fields.username, password: fields.password, connectString: connectString(fields) });
+    await conn.execute(sql);
+  } finally {
+    if (conn) await conn.close().catch(() => {});
+  }
+}
+
 export async function oracleIntrospectSchema(
   fields: Record<string, string>,
   onProgress: (event: IntrospectionProgressEvent) => void,

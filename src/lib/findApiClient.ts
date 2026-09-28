@@ -78,7 +78,15 @@ export type TableDef = {
 };
 export type RelationshipEdge = { fromTable: string; fromColumns: string[]; toTable: string; toColumns: string[]; constraintName: string };
 
-export type UnconstrainedReference = { table: string; column: string; likelyTargetTable: string };
+export type UnconstrainedReference = { table: string; column: string; likelyTargetTable: string; likelyTargetColumn: string | null };
+
+export type FixLinkResult =
+  | { status: "safe"; violatingRows: 0; sql: string; ref: UnconstrainedReference }
+  | { status: "unsafe"; violatingRows: number; sql: string; ref: UnconstrainedReference }
+  | { status: "needs_manual_entry"; reason: string; ref: UnconstrainedReference }
+  | { status: "unsupported_connector"; reason: string }
+  | { status: "not_found"; reason: string }
+  | { status: "applied"; sql: string; constraintName: string; ref: UnconstrainedReference };
 export type SchemaDrift = {
   addedTables: string[];
   removedTables: string[];
@@ -262,6 +270,11 @@ export const findApi = {
   getAiUsage: () => request<AiUsageResponse>("/ai-usage"),
   updateAiUsageSettings: (maxOutputTokens: number | null) =>
     request<OrgAiSettings>("/ai-usage/settings", { method: "PUT", body: JSON.stringify({ maxOutputTokens }) }),
+
+  checkUnconstrainedRefFix: (connectionId: string, body: { fields: Record<string, string>; table: string; column: string }) =>
+    request<FixLinkResult>(`/connections/${connectionId}/unconstrained-refs/check`, { method: "POST", body: JSON.stringify(body) }),
+  applyUnconstrainedRefFix: (connectionId: string, body: { fields: Record<string, string>; table: string; column: string }) =>
+    request<FixLinkResult>(`/connections/${connectionId}/unconstrained-refs/apply`, { method: "POST", body: JSON.stringify(body) }),
 };
 
 type CrawlStreamHandlers = {

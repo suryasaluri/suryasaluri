@@ -18,7 +18,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Loader2, Trash2, RefreshCw, ChevronDown, Table2, Waypoints, Tags,
   FileText, Sparkles, Plug, ShieldCheck, Brain, BarChart3, Play, Gauge, Ban, Send,
-  BookOpen, Bot, Download, AlertTriangle, Link2Off, KeyRound, Link2,
+  BookOpen, Bot, Download, AlertTriangle, Link2Off, KeyRound, Link2, CheckCircle2, Wrench,
 } from "lucide-react";
 import { iconFor, SENSITIVITY_STYLE } from "@/lib/connectors";
 import { downloadTextFile, downloadMarkdownAsPdf, downloadReportCsv, downloadReportPdf, downloadReportDoc } from "@/lib/exportDocs";
@@ -26,6 +26,7 @@ import { RelationshipDiagram } from "@/components/RelationshipDiagram";
 import {
   findApi, streamCrawl, type ConnectionRecord, type TableDef,
   type ReportTemplate, type ReportOutcome, type CostEstimate, type CopilotAnswer,
+  type UnconstrainedReference, type FixLinkResult,
 } from "@/lib/findApiClient";
 
 export const Route = createFileRoute("/_authenticated/app/find")({
@@ -67,8 +68,16 @@ type CredentialActionInput =
   | { kind: "test" }
   | { kind: "crawl" }
   | { kind: "run"; template: ReportTemplate }
-  | { kind: "custom"; text: string };
+  | { kind: "custom"; text: string }
+  | { kind: "fix_link"; ref: UnconstrainedReference };
 type CredentialAction = CredentialActionInput & { connectionId: string; connectorId: string | null };
+
+/** Mirrors the server's fkFix.ts naming exactly — shown before the real check/apply call returns the authoritative SQL, so the dialog never opens empty. */
+function previewFixSql(ref: UnconstrainedReference): string | null {
+  if (!ref.likelyTargetColumn) return null;
+  const constraintName = `FK_${ref.table}_${ref.column}`.slice(0, 30);
+  return `ALTER TABLE ${ref.table} ADD CONSTRAINT ${constraintName} FOREIGN KEY (${ref.column}) REFERENCES ${ref.likelyTargetTable}(${ref.likelyTargetColumn})`;
+}
 
 /** Renders one connector field by its declared type — a native file input for "file" (reads client-side via FileReader, never touches the server until submit), a plain Input otherwise. A "file" field's paired `<key>Name` field is filled in automatically from the chosen File object, never shown to the user directly (the connector marks it `hidden`). */
 function FieldInput({ field, value, onChange }: { field: import("@/lib/findApiClient").FieldSpec; value: string; onChange: (key: string, value: string) => void }) {
@@ -249,6 +258,7 @@ function FindPage() {
       username: conn.username ?? "", password: "",
     });
     setFilterValues({});
+    setFixLinkResult(null);
   }
 
   const retest = useMutation({
@@ -369,14 +379,39 @@ function FindPage() {
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
 
+  // --- fix a flagged missing link: identify (safety check) then solve (apply) in one CTA ---
+  const [fixLinkResult, setFixLinkResult] = useState<FixLinkResult | null>(null);
+  const fixLink = useMutation({
+    mutationFn: async (vars: { id: string; fields: Record<string, string>; table: string; column: string }): Promise<FixLinkResult> => {
+      const checked = await findApi.checkUnconstrainedRefFix(vars.id, vars);
+      if (checked.status !== "safe") return checked;
+      return findApi.applyUnconstrainedRefFix(vars.id, vars);
+    },
+    onSuccess: (result) => {
+      setFixLinkResult(result);
+      if (result.status === "applied") {
+        qc.invalidateQueries({ queryKey: ["schema", activeId] });
+        qc.invalidateQueries({ queryKey: ["glossary", activeId] });
+        setCredentialAction(null);
+        toast.success(`Added ${result.constraintName} — ${result.ref.table}.${result.ref.column} now points at ${result.ref.likelyTargetTable}`);
+      } else if (result.status === "unsafe") {
+        toast.warning(`${result.violatingRows} row${result.violatingRows === 1 ? "" : "s"} would violate this constraint — clean up the data first`);
+      } else {
+        toast.error("reason" in result ? result.reason : "Couldn't apply this fix");
+      }
+    },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
+
   function submitCredentialPrompt() {
     if (!credentialAction) return;
     if (credentialAction.kind === "test") retest.mutate({ id: credentialAction.connectionId, fields: credentialFields });
     else if (credentialAction.kind === "crawl") crawl.mutate({ id: credentialAction.connectionId, fields: credentialFields });
     else if (credentialAction.kind === "run") runReport.mutate({ id: credentialAction.connectionId, templateId: credentialAction.template.id, fields: credentialFields, filterValues });
-    else runCustom.mutate({ id: credentialAction.connectionId, text: credentialAction.text, fields: credentialFields });
+    else if (credentialAction.kind === "custom") runCustom.mutate({ id: credentialAction.connectionId, text: credentialAction.text, fields: credentialFields });
+    else fixLink.mutate({ id: credentialAction.connectionId, fields: credentialFields, table: credentialAction.ref.table, column: credentialAction.ref.column });
   }
-  const credentialPending = retest.isPending || crawlPending || runReport.isPending || runCustom.isPending;
+  const credentialPending = retest.isPending || crawlPending || runReport.isPending || runCustom.isPending || fixLink.isPending;
 
   // --- schema / documentation for the active connection ---
   const { data: schema } = useQuery({
@@ -767,10 +802,24 @@ function FindPage() {
                         <div>
                           <div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Link2Off className="h-3.5 w-3.5" /> Possible missing links</div>
                           <p className="mb-2 text-xs text-muted-foreground">These columns look like they should point at another table, but nothing enforces it — worth double-checking nothing referenced here was deleted by mistake.</p>
-                          <div className="space-y-1.5">
+                          <div className="space-y-2">
                             {schema.unconstrainedReferences.map((r, i) => (
-                              <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 font-mono text-xs">
-                                <span>{r.table}.{r.column}</span> <span className="text-muted-foreground">looks like a reference to</span> <span>{r.likelyTargetTable}</span>
+                              <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="font-mono">
+                                    <span>{r.table}.{r.column}</span> <span className="text-muted-foreground">looks like a reference to</span> <span>{r.likelyTargetTable}</span>
+                                  </div>
+                                  {r.likelyTargetColumn && (
+                                    <Button size="sm" variant="outline" onClick={() => active && openCredentialPrompt(active, { kind: "fix_link", ref: r })}>
+                                      <Wrench className="mr-2 h-3 w-3" /> Identify & fix
+                                    </Button>
+                                  )}
+                                </div>
+                                {r.likelyTargetColumn ? (
+                                  <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">Recommended: ADD CONSTRAINT FOREIGN KEY ({r.column}) REFERENCES {r.likelyTargetTable}({r.likelyTargetColumn})</div>
+                                ) : (
+                                  <div className="mt-1.5 text-muted-foreground">{r.likelyTargetTable}'s primary key isn't a single column, so the right column to reference can't be inferred — add this one manually.</div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1151,14 +1200,41 @@ function FindPage() {
               {credentialAction?.kind === "test" && "Re-test connection"}
               {credentialAction?.kind === "run" && `Run "${credentialAction.template.name}"`}
               {credentialAction?.kind === "custom" && "Run custom report"}
+              {credentialAction?.kind === "fix_link" && "Fix missing link"}
             </DialogTitle>
             <DialogDescription>
-              {credentialConnector?.category === "File" ? "Nothing is stored server-side — choose the file again to proceed." : "Credentials aren't stored — confirm them to proceed."}
+              {credentialAction?.kind === "fix_link"
+                ? "Checks whether it's safe first, then adds the constraint — nothing is written until the check comes back clean. Credentials aren't stored."
+                : credentialConnector?.category === "File" ? "Nothing is stored server-side — choose the file again to proceed." : "Credentials aren't stored — confirm them to proceed."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {credentialAction?.kind === "custom" && (
               <div className="rounded-lg bg-secondary/30 px-3 py-2 text-xs italic text-muted-foreground">"{credentialAction.text}"</div>
+            )}
+            {credentialAction?.kind === "fix_link" && (
+              <div className="space-y-2">
+                <div className="rounded-lg bg-secondary/30 px-3 py-2 font-mono text-xs">
+                  <span>{credentialAction.ref.table}.{credentialAction.ref.column}</span> <span className="text-muted-foreground">→</span> <span>{credentialAction.ref.likelyTargetTable}</span>
+                </div>
+                <pre className="overflow-x-auto rounded-lg border border-border bg-background/40 p-3 font-mono text-[11px] text-muted-foreground">
+                  {fixLinkResult && "sql" in fixLinkResult ? fixLinkResult.sql : previewFixSql(credentialAction.ref)}
+                </pre>
+                {fixLinkResult?.status === "unsafe" && (
+                  <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                    <AlertTriangle className="mr-1 inline h-3 w-3" />
+                    {fixLinkResult.violatingRows} row{fixLinkResult.violatingRows === 1 ? "" : "s"} would violate this constraint — clean up the referencing data before trying again. Nothing was changed.
+                  </div>
+                )}
+                {(fixLinkResult?.status === "needs_manual_entry" || fixLinkResult?.status === "unsupported_connector" || fixLinkResult?.status === "not_found") && (
+                  <div className="rounded-lg border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">{fixLinkResult.reason}</div>
+                )}
+                {fixLinkResult?.status === "applied" && (
+                  <div className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+                    <CheckCircle2 className="mr-1 inline h-3 w-3" /> Constraint {fixLinkResult.constraintName} added.
+                  </div>
+                )}
+              </div>
             )}
             {credentialConnector?.fields.filter((f) => !f.hidden).map((f) => (
               <div key={f.key}>
@@ -1191,12 +1267,17 @@ function FindPage() {
             ))}
           </div>
           <DialogFooter>
-            <Button onClick={submitCredentialPrompt} disabled={credentialPending}>
-              {credentialPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plug className="mr-2 h-3 w-3" />}
-              {credentialAction?.kind === "crawl" && "Start crawl"}
-              {credentialAction?.kind === "test" && "Test"}
-              {(credentialAction?.kind === "run" || credentialAction?.kind === "custom") && "Run"}
-            </Button>
+            {credentialAction?.kind === "fix_link" && fixLinkResult?.status === "applied" ? (
+              <Button onClick={() => setCredentialAction(null)}>Done</Button>
+            ) : (
+              <Button onClick={submitCredentialPrompt} disabled={credentialPending}>
+                {credentialPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plug className="mr-2 h-3 w-3" />}
+                {credentialAction?.kind === "crawl" && "Start crawl"}
+                {credentialAction?.kind === "test" && "Test"}
+                {(credentialAction?.kind === "run" || credentialAction?.kind === "custom") && "Run"}
+                {credentialAction?.kind === "fix_link" && (fixLinkResult ? "Try again" : "Identify & fix")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
