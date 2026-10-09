@@ -43,7 +43,7 @@ function SettingsPage() {
   if (!isAdmin) {
     return (
       <div>
-        <PageHeader phase="Admin" title="Settings" desc="Workspace administration." />
+        <PageHeader phase="Admin" title="Settings" desc="Workspace administration." crumbs={[{ label: "Overview", to: "/app" }]} />
         <div className="p-8">
           <div className="mx-auto max-w-xl rounded-xl border border-border bg-card p-8 text-center">
             <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -64,6 +64,7 @@ function SettingsPage() {
         title="Settings"
         desc="Manage your organization, members, security, and audit history."
         action={<Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" /> Admin</Badge>}
+        crumbs={[{ label: "Overview", to: "/app" }]}
       />
       <div className="p-8">
         <Tabs defaultValue="org" className="space-y-6">

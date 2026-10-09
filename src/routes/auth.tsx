@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Database, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — Nexus Command" }, { name: "description", content: "Sign in to your Nexus Command workspace." }] }),
+  head: () => ({ meta: [{ title: "Sign in: Nexus Command" }, { name: "description", content: "Sign in to your Nexus Command workspace." }] }),
   component: AuthPage,
 });
 

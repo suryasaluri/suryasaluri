@@ -8,21 +8,21 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Nexus Command — Find, Extract, Transform, Load, Analyze" },
-      { name: "description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics — in one." },
-      { property: "og:title", content: "Nexus Command — Find, Extract, Transform, Load, Analyze" },
-      { property: "og:description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics — in one." },
+      { title: "Nexus Command: Find, Extract, Transform, Load, Analyze" },
+      { name: "description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics, all in one." },
+      { property: "og:title", content: "Nexus Command: Find, Extract, Transform, Load, Analyze" },
+      { property: "og:description", content: "The only data integration platform that auto-discovers your sources, applies policy-driven transformation, and ships executive analytics, all in one." },
     ],
   }),
   component: Landing,
 });
 
 const phases = [
-  { icon: Search, name: "FIND", title: "Auto-discover sources", desc: "Authorized network scans surface every database, API, and SaaS in minutes — not weeks.", color: "chart-1" },
+  { icon: Search, name: "FIND", title: "Auto-discover sources", desc: "Authorized network scans surface every database, API, and SaaS in minutes, not weeks.", color: "chart-1" },
   { icon: Download, name: "EXTRACT", title: "Intelligent extraction", desc: "Dynamic connectors, incremental loads, real-time streaming, automatic schema discovery.", color: "chart-2" },
   { icon: Wand2, name: "TRANSFORM", title: "Policy-driven transforms", desc: "No-code builder with PCI, HIPAA, GDPR templates. PII masking and quality rules in one click.", color: "chart-3" },
-  { icon: Upload, name: "LOAD", title: "Multi-destination delivery", desc: "Snowflake, BigQuery, Redshift, S3, reverse-ETL — smart upserts, SCD, streaming.", color: "chart-4" },
-  { icon: BarChart3, name: "ANALYZE", title: "Executive intelligence", desc: "Auto-generated dashboards, anomaly detection, NL queries, forecasts — no BI tool needed.", color: "chart-5" },
+  { icon: Upload, name: "LOAD", title: "Multi-destination delivery", desc: "Snowflake, BigQuery, Redshift, S3, reverse-ETL: smart upserts, SCD, streaming.", color: "chart-4" },
+  { icon: BarChart3, name: "ANALYZE", title: "Executive intelligence", desc: "Auto-generated dashboards, anomaly detection, NL queries, forecasts. No BI tool needed.", color: "chart-5" },
 ];
 
 function Landing() {
@@ -56,7 +56,7 @@ function Landing() {
         <div className="relative mx-auto max-w-7xl px-6 pt-24 pb-32 text-center">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs text-muted-foreground">
             <span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-75" /><span className="relative h-2 w-2 rounded-full bg-primary" /></span>
-            FETLA v1 — Find · Extract · Transform · Load · Analyze
+            FETLA v1: Find · Extract · Transform · Load · Analyze
           </div>
           <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-tight tracking-tight md:text-7xl">
             Your data, <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">discovered</span>, transformed, and ready for the boardroom.
@@ -95,7 +95,7 @@ function Landing() {
           <div className="mb-16 text-center">
             <div className="text-xs font-mono uppercase tracking-widest text-primary">The FETLA Pipeline</div>
             <h2 className="mt-3 text-4xl font-bold md:text-5xl">Five phases. One platform.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Everything between raw infrastructure and executive insight — without the seven tools traditionally required.</p>
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Everything between raw infrastructure and executive insight, without the seven tools traditionally required.</p>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             {phases.map((p, i) => (
@@ -187,7 +187,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        © 2026 Nexus Command — Built on the FETLA framework
+        © 2026 Nexus Command. Built on the FETLA framework
       </footer>
     </div>
   );

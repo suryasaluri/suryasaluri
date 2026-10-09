@@ -66,6 +66,7 @@ function ExtractPage() {
   return (
     <div>
       <PageHeader phase="02 · Extract" title="Extraction jobs" desc="Incremental, full, or streaming extraction with auto schema discovery."
+        crumbs={[{ label: "Overview", to: "/app" }]}
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="bg-primary text-primary-foreground"><Plus className="mr-2 h-4 w-4" /> New job</Button></DialogTrigger>

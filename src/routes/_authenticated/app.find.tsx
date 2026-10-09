@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -116,7 +117,7 @@ function CostPanel({ estimate, cached, latencyMs }: { estimate: CostEstimate; ca
       <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2.5 text-xs">
         <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
         <div>
-          <span className="font-medium text-destructive">Blocked by cost cap</span> — dry-run estimate (cost {estimate.cost.toLocaleString()}, ~{estimate.cardinality.toLocaleString()} rows) exceeds the configured threshold. Query was not executed.
+          <span className="font-medium text-destructive">Blocked by cost cap</span>: dry-run estimate (cost {estimate.cost.toLocaleString()}, ~{estimate.cardinality.toLocaleString()} rows) exceeds the configured threshold. Query was not executed.
         </div>
       </div>
     );
@@ -137,10 +138,10 @@ function ReportResultView({ outcome, filename }: { outcome: ReportOutcome; filen
   if (outcome.status === "validation_error") {
     return (
       <div className="space-y-1.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-xs">
-        <div className="font-medium text-destructive">Validation failed — nothing was sent to the database</div>
+        <div className="font-medium text-destructive">Validation failed. Nothing was sent to the database</div>
         {outcome.errors.map((e, i) => (
           <div key={i} className="text-muted-foreground">
-            <span className="font-mono text-destructive">{e.field}</span> — {e.reason}
+            <span className="font-mono text-destructive">{e.field}</span>: {e.reason}
             {e.suggestions.length > 0 && <> Did you mean: {e.suggestions.map((s) => <span key={s} className="font-mono text-primary"> {s}</span>)}?</>}
           </div>
         ))}
@@ -190,7 +191,7 @@ function FindPage() {
 
   const { data: connectors } = useQuery({ queryKey: ["connectors"], queryFn: findApi.getConnectors });
 
-  const { data: connections } = useQuery({ queryKey: ["connections"], queryFn: findApi.listConnections });
+  const { data: connections, isLoading: connectionsLoading } = useQuery({ queryKey: ["connections"], queryFn: findApi.listConnections });
   const [activeId, setActiveId] = useState<string | null>(null);
   useEffect(() => {
     if (!activeId && connections?.length) setActiveId(connections[0].id);
@@ -289,7 +290,7 @@ function FindPage() {
       qc.invalidateQueries({ queryKey: ["crawls", activeId] });
       setCredentialAction(null);
       setTimeout(() => setLiveFeed([]), 2200);
-      toast.success(`Crawl complete — ${res.tablesFound} table${res.tablesFound === 1 ? "" : "s"}, ${res.viewsFound} view${res.viewsFound === 1 ? "" : "s"}`);
+      toast.success(`Crawl complete: ${res.tablesFound} table${res.tablesFound === 1 ? "" : "s"}, ${res.viewsFound} view${res.viewsFound === 1 ? "" : "s"}`);
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
@@ -360,8 +361,8 @@ function FindPage() {
     onSuccess: (outcome, vars) => {
       setReportOutcomes((prev) => ({ ...prev, [vars.templateId]: outcome }));
       setCredentialAction(null);
-      if (outcome.status === "blocked") toast.warning("Blocked by cost cap — see the report card for detail");
-      else if (outcome.status === "validation_error") toast.error("Validation failed — see the report card for detail");
+      if (outcome.status === "blocked") toast.warning("Blocked by cost cap, see the report card for detail");
+      else if (outcome.status === "validation_error") toast.error("Validation failed, see the report card for detail");
       else toast.success(outcome.cached ? "Served from cache" : "Report ran");
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
@@ -393,9 +394,9 @@ function FindPage() {
         qc.invalidateQueries({ queryKey: ["schema", activeId] });
         qc.invalidateQueries({ queryKey: ["glossary", activeId] });
         setCredentialAction(null);
-        toast.success(`Added ${result.constraintName} — ${result.ref.table}.${result.ref.column} now points at ${result.ref.likelyTargetTable}`);
+        toast.success(`Added ${result.constraintName}: ${result.ref.table}.${result.ref.column} now points at ${result.ref.likelyTargetTable}`);
       } else if (result.status === "unsafe") {
-        toast.warning(`${result.violatingRows} row${result.violatingRows === 1 ? "" : "s"} would violate this constraint — clean up the data first`);
+        toast.warning(`${result.violatingRows} row${result.violatingRows === 1 ? "" : "s"} would violate this constraint, clean up the data first`);
       } else {
         toast.error("reason" in result ? result.reason : "Couldn't apply this fix");
       }
@@ -414,7 +415,7 @@ function FindPage() {
   const credentialPending = retest.isPending || crawlPending || runReport.isPending || runCustom.isPending || fixLink.isPending;
 
   // --- schema / documentation for the active connection ---
-  const { data: schema } = useQuery({
+  const { data: schema, isLoading: schemaLoading } = useQuery({
     queryKey: ["schema", activeId],
     queryFn: () => findApi.getSchema(activeId!),
     enabled: !!activeId,
@@ -474,7 +475,8 @@ function FindPage() {
       <PageHeader
         phase="01 · Find"
         title="Schema & relationship intelligence"
-        desc="Your database has the data. Nexus gives it back the logic — connect to a database your team already knows, crawl its schema, and get a business glossary, relationship map, and technical + functional documentation out the other end."
+        desc="Your database has the data. Nexus gives it back the logic: connect to a database your team already knows, crawl its schema, and get a business glossary, relationship map, and technical + functional documentation out the other end."
+        crumbs={[{ label: "Overview", to: "/app" }]}
         action={
           <Dialog open={registerOpen} onOpenChange={(o) => { setRegisterOpen(o); if (!o) { setRegisterFields({}); setTestState("idle"); setTestMessage(""); setRegisterName(""); } }}>
             <DialogTrigger asChild>
@@ -483,7 +485,7 @@ function FindPage() {
             <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add a connection</DialogTitle>
-                <DialogDescription>A live database your team has already chosen to expose, or a file export to try Nexus against before wiring up credentials at all — Find no longer scans for unknown sources.</DialogDescription>
+                <DialogDescription>A live database your team has already chosen to expose, or a file export to try Nexus against before wiring up credentials at all. Find no longer scans for unknown sources.</DialogDescription>
               </DialogHeader>
               {connectors && connectors.length > 1 && (
                 <div className="flex gap-2">
@@ -503,7 +505,7 @@ function FindPage() {
               )}
               {registerConnector && (
                 <div className="space-y-4">
-                  <div><Label>Display name</Label><Input value={registerName} onChange={(e) => setRegisterName(e.target.value)} placeholder={registerConnector.category === "File" ? "FPI Sales Export" : "Oracle Fusion — Production"} /></div>
+                  <div><Label>Display name</Label><Input value={registerName} onChange={(e) => setRegisterName(e.target.value)} placeholder={registerConnector.category === "File" ? "FPI Sales Export" : "Oracle Fusion Production"} /></div>
                   {registerConnector.fields.filter((f) => !f.hidden).map((f) => (
                     <div key={f.key}>
                       <Label>{f.label}</Label>
@@ -538,9 +540,21 @@ function FindPage() {
       <div className="space-y-6 p-8">
         {/* Connections */}
         <div className="grid gap-3">
-          {!connections?.length ? (
+          {connectionsLoading ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card-gradient p-5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : !connections?.length ? (
             <div className="rounded-xl border border-border bg-card-gradient p-10 text-center text-sm text-muted-foreground">
-              No connections yet. Add the database your team wants Nexus to understand — or upload a file export to try it without a live connection.
+              No connections yet. Add the database your team wants Nexus to understand, or upload a file export to try it without a live connection.
             </div>
           ) : (
             connections.map((c) => {
@@ -609,7 +623,7 @@ function FindPage() {
               <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
                 <div className="text-muted-foreground">
-                  <span className="font-medium text-warning">Schema drift since the previous crawl</span> —
+                  <span className="font-medium text-warning">Schema drift since the previous crawl</span>:
                   {schema.drift.addedTables.length > 0 && <> {schema.drift.addedTables.length} table{schema.drift.addedTables.length === 1 ? "" : "s"} added ({schema.drift.addedTables.join(", ")}).</>}
                   {schema.drift.removedTables.length > 0 && <> {schema.drift.removedTables.length} table{schema.drift.removedTables.length === 1 ? "" : "s"} removed ({schema.drift.removedTables.join(", ")}).</>}
                   {schema.drift.changedTables.length > 0 && (
@@ -620,8 +634,17 @@ function FindPage() {
               </div>
             )}
 
-            {!schema?.tables.length ? (
-              <div className="p-10 text-center text-sm text-muted-foreground">No schema yet — click "Crawl schema" above to introspect this connection.</div>
+            {schemaLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : !schema?.tables.length ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">No schema yet. Click "Crawl schema" above to introspect this connection.</div>
             ) : (
               <Tabs value={tab} onValueChange={setTab}>
                 <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
@@ -723,7 +746,7 @@ function FindPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         {s.candidateValues ? s.candidateValues.map((v) => (
                           <Badge key={v} variant="outline" className="font-mono text-[10px]">{v}</Badge>
-                        )) : <span className="text-muted-foreground">flagged by name — values unconfirmed</span>}
+                        )) : <span className="text-muted-foreground">flagged by name, values unconfirmed</span>}
                         <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">{s.source === "check_constraint" ? "from CHECK constraint" : "name heuristic"}</span>
                       </div>
                     </div>
@@ -732,7 +755,7 @@ function FindPage() {
 
                 <TabsContent value="glossary" className="space-y-4">
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
-                    Your database has the data. Nexus gives it back the logic — what a column is for versus what it's named, which fields are derived rather than stored, and which differently-named columns across tables mean the same thing.
+                    Your database has the data. Nexus gives it back the logic: what a column is for versus what it's named, which fields are derived rather than stored, and which differently-named columns across tables mean the same thing.
                   </div>
                   {glossaryLoading ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">Reconstructing the glossary…</div>
@@ -752,7 +775,7 @@ function FindPage() {
                           {schema && schema.unconstrainedReferences.length > 0 && <>, and flagged <strong>{schema.unconstrainedReferences.length}</strong> possible missing link{schema.unconstrainedReferences.length === 1 ? "" : "s"}</>}.
                         </p>
                         {glossary.stale && (
-                          <Badge variant="outline" className="mt-2 border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
+                          <Badge variant="outline" className="mt-2 border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale: schema re-crawled since this was generated</Badge>
                         )}
                       </div>
 
@@ -785,7 +808,7 @@ function FindPage() {
                       {glossary.synonym_groups.length > 0 && (
                         <div>
                           <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Same thing, different names</div>
-                          <p className="mb-2 text-xs text-muted-foreground">If you ever rename one of these, rename the other too — they're tracking the same value.</p>
+                          <p className="mb-2 text-xs text-muted-foreground">If you ever rename one of these, rename the other too. They're tracking the same value.</p>
                           <div className="space-y-1.5">
                             {glossary.synonym_groups.map((sg, i) => (
                               <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
@@ -801,7 +824,7 @@ function FindPage() {
                       {schema && schema.unconstrainedReferences.length > 0 && (
                         <div>
                           <div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Link2Off className="h-3.5 w-3.5" /> Possible missing links</div>
-                          <p className="mb-2 text-xs text-muted-foreground">These columns look like they should point at another table, but nothing enforces it — worth double-checking nothing referenced here was deleted by mistake.</p>
+                          <p className="mb-2 text-xs text-muted-foreground">These columns look like they should point at another table, but nothing enforces it. Worth double-checking nothing referenced here was deleted by mistake.</p>
                           <div className="space-y-2">
                             {schema.unconstrainedReferences.map((r, i) => (
                               <div key={i} className="rounded-lg bg-secondary/30 px-4 py-2.5 text-xs">
@@ -818,7 +841,7 @@ function FindPage() {
                                 {r.likelyTargetColumn ? (
                                   <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">Recommended: ADD CONSTRAINT FOREIGN KEY ({r.column}) REFERENCES {r.likelyTargetTable}({r.likelyTargetColumn})</div>
                                 ) : (
-                                  <div className="mt-1.5 text-muted-foreground">{r.likelyTargetTable}'s primary key isn't a single column, so the right column to reference can't be inferred — add this one manually.</div>
+                                  <div className="mt-1.5 text-muted-foreground">{r.likelyTargetTable}'s primary key isn't a single column, so the right column to reference can't be inferred. Add this one manually.</div>
                                 )}
                               </div>
                             ))}
@@ -899,7 +922,7 @@ function FindPage() {
                       <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">Schema-grounded</Badge>
                     </div>
                     <p className="mb-3 text-xs text-muted-foreground">
-                      Ask what a table, column, or relationship means. The copilot answers only from the crawled schema, glossary, and documentation — it never invents a number, and points you to Reports for anything that needs a real query.
+                      Ask what a table, column, or relationship means. The copilot answers only from the crawled schema, glossary, and documentation. It never invents a number, and points you to Reports for anything that needs a real query.
                     </p>
                     <div className="flex gap-2">
                       <Input
@@ -957,7 +980,7 @@ function FindPage() {
                       <h4 className="font-medium">Build a report</h4>
                       <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">click, don't type</Badge>
                     </div>
-                    <p className="mb-3 text-xs text-muted-foreground">Pick a table, then click the columns to group and measure by — no typing required.</p>
+                    <p className="mb-3 text-xs text-muted-foreground">Pick a table, then click the columns to group and measure by. No typing required.</p>
                     <div className="mb-3 flex flex-wrap gap-1.5">
                       {schema?.tables.map((t) => (
                         <button
@@ -992,7 +1015,7 @@ function FindPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Measure (optional — leave blank to count rows)</div>
+                            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Measure (optional, leave blank to count rows)</div>
                             <div className="flex flex-wrap gap-1.5">
                               {measureCols.length === 0 && <span className="text-xs text-muted-foreground">No numeric columns on this table.</span>}
                               {measureCols.map((c) => (
@@ -1045,7 +1068,7 @@ function FindPage() {
                       <h4 className="font-medium">Ask for a report</h4>
                       <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">AI-parsed</Badge>
                     </div>
-                    <p className="mb-3 text-xs text-muted-foreground">Describe what you want in plain language — every field is checked against the real schema before any SQL runs.</p>
+                    <p className="mb-3 text-xs text-muted-foreground">Describe what you want in plain language. Every field is checked against the real schema before any SQL runs.</p>
                     <div className="flex gap-2">
                       <Input
                         value={customText}
@@ -1089,7 +1112,7 @@ function FindPage() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {documentation ? `Generated ${new Date(documentation.generated_at).toLocaleString()}` : ""}
                       {documentation?.stale && (
-                        <Badge variant="outline" className="border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale — schema re-crawled since this was generated</Badge>
+                        <Badge variant="outline" className="border-warning/40 text-warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stale: schema re-crawled since this was generated</Badge>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -1119,7 +1142,7 @@ function FindPage() {
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             This connection has <strong>{schema?.tables.length ?? 0} tables</strong> and <strong>{schema?.relationships.length ?? 0} relationships</strong> between them.
-                            {" "}Set <code className="rounded bg-muted px-1 py-0.5 text-xs">ANTHROPIC_API_KEY</code> on find-service for a full plain-English write-up here — the technical detail alongside still works without it.
+                            {" "}Set <code className="rounded bg-muted px-1 py-0.5 text-xs">ANTHROPIC_API_KEY</code> on find-service for a full plain-English write-up here. The technical detail alongside still works without it.
                           </p>
                         )}
                       </div>
@@ -1204,8 +1227,8 @@ function FindPage() {
             </DialogTitle>
             <DialogDescription>
               {credentialAction?.kind === "fix_link"
-                ? "Checks whether it's safe first, then adds the constraint — nothing is written until the check comes back clean. Credentials aren't stored."
-                : credentialConnector?.category === "File" ? "Nothing is stored server-side — choose the file again to proceed." : "Credentials aren't stored — confirm them to proceed."}
+                ? "Checks whether it's safe first, then adds the constraint. Nothing is written until the check comes back clean. Credentials aren't stored."
+                : credentialConnector?.category === "File" ? "Nothing is stored server-side. Choose the file again to proceed." : "Credentials aren't stored. Confirm them to proceed."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1223,7 +1246,7 @@ function FindPage() {
                 {fixLinkResult?.status === "unsafe" && (
                   <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
                     <AlertTriangle className="mr-1 inline h-3 w-3" />
-                    {fixLinkResult.violatingRows} row{fixLinkResult.violatingRows === 1 ? "" : "s"} would violate this constraint — clean up the referencing data before trying again. Nothing was changed.
+                    {fixLinkResult.violatingRows} row{fixLinkResult.violatingRows === 1 ? "" : "s"} would violate this constraint. Clean up the referencing data before trying again. Nothing was changed.
                   </div>
                 )}
                 {(fixLinkResult?.status === "needs_manual_entry" || fixLinkResult?.status === "unsupported_connector" || fixLinkResult?.status === "not_found") && (

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Database, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/forgot-password")({
-  head: () => ({ meta: [{ title: "Forgot password — Nexus Command" }, { name: "description", content: "Reset your Nexus Command password." }] }),
+  head: () => ({ meta: [{ title: "Forgot password: Nexus Command" }, { name: "description", content: "Reset your Nexus Command password." }] }),
   component: ForgotPasswordPage,
 });
 
@@ -26,7 +26,7 @@ function ForgotPasswordPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     setSent(true);
-    toast.success("Reset link sent — check your email");
+    toast.success("Reset link sent, check your email");
   };
 
   return (

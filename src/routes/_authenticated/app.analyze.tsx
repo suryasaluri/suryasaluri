@@ -28,7 +28,8 @@ function AnalyzePage() {
   return (
     <div>
       <PageHeader phase="05 · Analyze" title="Executive intelligence"
-        desc="Auto-generated dashboards, anomaly detection, and natural-language query — built from your loaded data." />
+        desc="Auto-generated dashboards, anomaly detection, and natural-language query, built from your loaded data."
+        crumbs={[{ label: "Overview", to: "/app" }]} />
       <div className="space-y-6 p-8">
         {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-5">
@@ -54,8 +55,8 @@ function AnalyzePage() {
             {[
               { icon: AlertTriangle, color: "text-destructive", t: "Churn spike in EU region", d: "Up 1.4pp vs last month. Likely tied to billing change rollout." },
               { icon: TrendingUp, color: "text-success", t: "Mobile signups +23% YoY", d: "Accelerating in APAC. Consider mobile-first onboarding tweaks." },
-              { icon: Lightbulb, color: "text-warning", t: "West Coast expansion potential", d: "18% untapped — based on lookalike modeling vs East Coast cohort." },
-              { icon: Target, color: "text-primary", t: "Q2 forecast: +15K customers", d: "95% confidence. Below target by 3K — recommend boosting paid acquisition." },
+              { icon: Lightbulb, color: "text-warning", t: "West Coast expansion potential", d: "18% untapped, based on lookalike modeling vs East Coast cohort." },
+              { icon: Target, color: "text-primary", t: "Q2 forecast: +15K customers", d: "95% confidence. Below target by 3K. Recommend boosting paid acquisition." },
             ].map((i) => (
               <div key={i.t} className="flex gap-3 rounded-lg bg-secondary/40 p-3">
                 <i.icon className={`h-4 w-4 shrink-0 ${i.color}`} />

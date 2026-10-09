@@ -114,7 +114,7 @@ export function RelationshipDiagram({
         </svg>
       </div>
       <figcaption className="mt-2 text-xs text-muted-foreground">
-        {tables.length} tables, {relationships.length} foreign-key relationships{onSelectTable ? " — click a table to jump to it below" : ""}. A gold dot flags a table with at least one sensitive column.
+        {tables.length} tables, {relationships.length} foreign-key relationships{onSelectTable ? ", click a table to jump to it below" : ""}. A gold dot flags a table with at least one sensitive column.
       </figcaption>
     </figure>
   );

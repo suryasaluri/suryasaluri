@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrg } from "@/lib/useOrg";
 import { AICopilot } from "@/components/AICopilot";
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 const nav = [
   { to: "/app", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -72,9 +75,33 @@ export function AppShell() {
   );
 }
 
-export function PageHeader({ phase, title, desc, action }: { phase?: string; title: string; desc?: string; action?: React.ReactNode }) {
+export function PageHeader({
+  phase, title, desc, action, crumbs,
+}: {
+  phase?: string;
+  title: string;
+  desc?: string;
+  action?: React.ReactNode;
+  /** Ancestor pages, root first, current page excluded (the title fills that role). Omit on the root page. */
+  crumbs?: { label: string; to: string }[];
+}) {
   return (
     <div className="border-b border-border bg-card/30 px-8 py-6">
+      {crumbs && crumbs.length > 0 && (
+        <Breadcrumb className="mb-2">
+          <BreadcrumbList>
+            {crumbs.map((c) => (
+              <span key={c.to} className="flex items-center gap-1.5 sm:gap-2.5">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild><Link to={c.to}>{c.label}</Link></BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+              </span>
+            ))}
+            <BreadcrumbItem><BreadcrumbPage>{title}</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
       <div className="flex items-end justify-between gap-4">
         <div>
           {phase && <div className="font-mono text-xs uppercase tracking-widest text-primary">{phase}</div>}

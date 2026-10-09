@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Database, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Reset password — Nexus Command" }, { name: "description", content: "Set a new password for your Nexus Command account." }] }),
+  head: () => ({ meta: [{ title: "Reset password: Nexus Command" }, { name: "description", content: "Set a new password for your Nexus Command account." }] }),
   component: ResetPasswordPage,
 });
 

@@ -52,6 +52,7 @@ function LoadPage() {
   return (
     <div>
       <PageHeader phase="04 · Load" title="Load destinations" desc="Multi-destination delivery with smart upsert, append, full-replace, and SCD strategies."
+        crumbs={[{ label: "Overview", to: "/app" }]}
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="bg-primary text-primary-foreground"><Plus className="mr-2 h-4 w-4" /> Add destination</Button></DialogTrigger>
@@ -88,7 +89,7 @@ function LoadPage() {
       <div className="p-8">
         <div className="rounded-xl border border-border bg-card-gradient">
           {!dests?.length ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">No destinations yet — add one to start loading.</div>
+            <div className="p-10 text-center text-sm text-muted-foreground">No destinations yet. Add one to start loading.</div>
           ) : (
             <ul className="divide-y divide-border">
               {dests.map((d: any) => {
