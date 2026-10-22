@@ -1,0 +1,58 @@
+name: Deploy prospect demo to GitHub Pages
+
+on:
+  push:
+    branches: [claude/practical-newton-1fbhzi]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Build static demo bundle
+        run: npm run build:demo
+        env:
+          VITE_SUPABASE_URL: https://pukrjkjszlsvtenqmefd.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGci••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+          VITE_SUPABASE_PROJECT_ID: pukrjkjszlsvtenqmefd
+          DEMO_BASE_PATH: /suryasaluri/
+          DEMO_OUT_DIR: .output-demo
+
+      # GitHub Pages has no server-side rewrites: it falls back to 404.html for
+      # any unmatched path, so copying the SPA shell there keeps deep links
+      # (e.g. a reload on /admin/inventory) working instead of 404ing.
+      - name: Add SPA fallback (404 -> index)
+        run: cp .output-demo/client/index.html .output-demo/client/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .output-demo/client
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
