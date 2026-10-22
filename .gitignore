@@ -1,6 +1,7 @@
 node_modules
 dist
 .output
+.output-demo*
 .vinxi
 .wrangler
 .env
