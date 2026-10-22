@@ -30,7 +30,7 @@ jobs:
         run: bun run build:demo
         env:
           VITE_SUPABASE_URL: https://pukrjkjszlsvtenqmefd.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGci••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1a3Jqa2pzemxzdnRlbnFtZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTE4MTUsImV4cCI6MjEwNDY4NzgxNX0.6YjXJw54264c-pxtanP9p1ijRGYIWOiIQ074605fUDk
           VITE_SUPABASE_PROJECT_ID: pukrjkjszlsvtenqmefd
           DEMO_BASE_PATH: /suryasaluri/
           DEMO_OUT_DIR: .output-demo
