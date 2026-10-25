@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PropertyTypeBadge } from "@/components/PropertyTypeBadge";
 import { formatCurrency } from "@/lib/format";
 import type { Project, Property, PropertyType } from "@/lib/db-types";
 import { MapPin, LayoutGrid, Rows3, Ruler, Compass, Car, BedDouble } from "lucide-react";
@@ -57,6 +58,9 @@ function PropertyCard({ p }: { p: Property & { projects?: Pick<Project, "name" |
           className="relative h-40 w-full bg-cover bg-center"
           style={{ backgroundImage: `url(${p.cover_image_url})` }}
         >
+          <div className="absolute left-2 top-2">
+            <PropertyTypeBadge type={p.property_type} className="bg-card/90 backdrop-blur-sm" />
+          </div>
           <div className="absolute right-2 top-2">
             <StatusBadge status={p.status} />
           </div>

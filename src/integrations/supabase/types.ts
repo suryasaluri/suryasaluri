@@ -131,6 +131,7 @@ export type Database = {
           referral_source: string | null;
           lead_status: Database["public"]["Enums"]["lead_status"];
           kyc_status: Database["public"]["Enums"]["verification_status"];
+          whatsapp_opt_in: boolean;
           created_at: string;
         };
         Insert: {
@@ -143,6 +144,7 @@ export type Database = {
           referral_source?: string | null;
           lead_status?: Database["public"]["Enums"]["lead_status"];
           kyc_status?: Database["public"]["Enums"]["verification_status"];
+          whatsapp_opt_in?: boolean;
           created_at?: string;
         };
         Update: {
@@ -155,6 +157,7 @@ export type Database = {
           referral_source?: string | null;
           lead_status?: Database["public"]["Enums"]["lead_status"];
           kyc_status?: Database["public"]["Enums"]["verification_status"];
+          whatsapp_opt_in?: boolean;
           created_at?: string;
         };
         Relationships: [
@@ -480,6 +483,54 @@ export type Database = {
           },
         ];
       };
+      loan_applications: {
+        Row: {
+          id: string;
+          customer_id: string;
+          property_id: string;
+          bank_name: string;
+          requested_amount: number;
+          status: Database["public"]["Enums"]["loan_status"];
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          property_id: string;
+          bank_name: string;
+          requested_amount: number;
+          status?: Database["public"]["Enums"]["loan_status"];
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          property_id?: string;
+          bank_name?: string;
+          requested_amount?: number;
+          status?: Database["public"]["Enums"]["loan_status"];
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loan_applications_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loan_applications_property_id_fkey";
+            columns: ["property_id"];
+            isOneToOne: false;
+            referencedRelation: "properties";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -564,6 +615,8 @@ export type Database = {
           builtup_area_sqft: number | null;
           parking_slots: number | null;
           amenities: string[] | null;
+          latitude: number | null;
+          longitude: number | null;
           created_at: string;
         };
         Insert: {
@@ -586,6 +639,8 @@ export type Database = {
           builtup_area_sqft?: number | null;
           parking_slots?: number | null;
           amenities?: string[] | null;
+          latitude?: number | null;
+          longitude?: number | null;
           created_at?: string;
         };
         Update: {
@@ -608,6 +663,8 @@ export type Database = {
           builtup_area_sqft?: number | null;
           parking_slots?: number | null;
           amenities?: string[] | null;
+          latitude?: number | null;
+          longitude?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -782,6 +839,7 @@ export type Database = {
         | "other";
       facing_direction: "east" | "west" | "north" | "south";
       lead_status: "new" | "contacted" | "site_visit" | "booked" | "sold";
+      loan_status: "submitted" | "under_review" | "approved" | "rejected";
       payment_mode: "cash" | "cheque" | "bank_transfer" | "upi" | "card" | "other";
       payment_status: "paid" | "pending" | "overdue";
       project_type_mix: "plots" | "flats" | "both";
@@ -932,6 +990,7 @@ export const Constants = {
       ],
       facing_direction: ["east", "west", "north", "south"],
       lead_status: ["new", "contacted", "site_visit", "booked", "sold"],
+      loan_status: ["submitted", "under_review", "approved", "rejected"],
       payment_mode: ["cash", "cheque", "bank_transfer", "upi", "card", "other"],
       payment_status: ["paid", "pending", "overdue"],
       project_type_mix: ["plots", "flats", "both"],

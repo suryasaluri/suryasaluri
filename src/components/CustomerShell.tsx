@@ -10,9 +10,11 @@ import {
   LogOut,
   Menu,
   Bell,
+  Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
+import { ChatWidget } from "@/components/ChatWidget";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -27,6 +29,7 @@ const nav = [
   { to: "/portal/documents", label: "My Documents", icon: FileText },
   { to: "/portal/payments", label: "My Payments", icon: Wallet },
   { to: "/portal/status", label: "Status Tracker", icon: RouteIcon },
+  { to: "/portal/settings", label: "Settings", icon: Settings },
 ];
 
 function NotificationsBell() {
@@ -182,6 +185,7 @@ export function CustomerShell() {
       <main className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
         <Outlet />
       </main>
+      <ChatWidget audience="customer" />
     </div>
   );
 }

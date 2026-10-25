@@ -5,6 +5,7 @@ import { useMyCustomer } from "@/lib/useProfile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PropertyTypeBadge } from "@/components/PropertyTypeBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Property, SiteVisit } from "@/lib/db-types";
 import {
@@ -175,7 +176,10 @@ function PortalHome() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold">{p.code}</span>
-                    <StatusBadge status={p.status} />
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <PropertyTypeBadge type={p.property_type} />
+                      <StatusBadge status={p.status} />
+                    </div>
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {p.projects?.name} · {p.projects?.location}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMyCustomer } from "@/lib/useProfile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PropertyTypeBadge } from "@/components/PropertyTypeBadge";
 import { StageStepper } from "@/components/StageStepper";
 import { formatCurrency } from "@/lib/format";
 import type { Property } from "@/lib/db-types";
@@ -83,10 +84,20 @@ function StatusTracker() {
                   {formatCurrency(property.price)}
                 </div>
               </div>
-              <StatusBadge status={property.status} />
+              <div className="flex items-center gap-2">
+                <PropertyTypeBadge type={property.property_type} />
+                <StatusBadge status={property.status} />
+              </div>
             </CardHeader>
             <CardContent className="overflow-x-auto pt-2">
               <StageStepper approvals={approvals} />
+              <Link
+                to="/portal/properties/$id"
+                params={{ id: property.id }}
+                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+              >
+                View location &amp; apply for financing →
+              </Link>
             </CardContent>
           </Card>
         ))}

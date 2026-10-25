@@ -28,6 +28,7 @@ import { Route as AuthenticatedPortalIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedPortalBrowseRouteImport } from './routes/_authenticated/portal.browse'
 import { Route as AuthenticatedPortalDocumentsRouteImport } from './routes/_authenticated/portal.documents'
 import { Route as AuthenticatedPortalPaymentsRouteImport } from './routes/_authenticated/portal.payments'
+import { Route as AuthenticatedPortalSettingsRouteImport } from './routes/_authenticated/portal.settings'
 import { Route as AuthenticatedPortalStatusRouteImport } from './routes/_authenticated/portal.status'
 import { Route as AuthenticatedPortalPropertiesIdRouteImport } from './routes/_authenticated/portal.properties.$id'
 
@@ -134,6 +135,12 @@ const AuthenticatedPortalPaymentsRoute =
     path: '/payments',
     getParentRoute: () => AuthenticatedPortalRoute,
   } as any)
+const AuthenticatedPortalSettingsRoute =
+  AuthenticatedPortalSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedPortalRoute,
+  } as any)
 const AuthenticatedPortalStatusRoute =
   AuthenticatedPortalStatusRouteImport.update({
     id: '/status',
@@ -164,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/portal/status': typeof AuthenticatedPortalStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/portal/': typeof AuthenticatedPortalIndexRoute
@@ -184,6 +192,7 @@ export interface FileRoutesByTo {
   '/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/portal/status': typeof AuthenticatedPortalStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/portal': typeof AuthenticatedPortalIndexRoute
@@ -208,6 +217,7 @@ export interface FileRoutesById {
   '/_authenticated/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/_authenticated/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/_authenticated/portal/payments': typeof AuthenticatedPortalPaymentsRoute
+  '/_authenticated/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/_authenticated/portal/status': typeof AuthenticatedPortalStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/portal/': typeof AuthenticatedPortalIndexRoute
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/portal/browse'
     | '/portal/documents'
     | '/portal/payments'
+    | '/portal/settings'
     | '/portal/status'
     | '/admin/'
     | '/portal/'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/portal/browse'
     | '/portal/documents'
     | '/portal/payments'
+    | '/portal/settings'
     | '/portal/status'
     | '/admin'
     | '/portal'
@@ -275,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/portal/browse'
     | '/_authenticated/portal/documents'
     | '/_authenticated/portal/payments'
+    | '/_authenticated/portal/settings'
     | '/_authenticated/portal/status'
     | '/_authenticated/admin/'
     | '/_authenticated/portal/'
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPortalPaymentsRouteImport
       parentRoute: typeof AuthenticatedPortalRoute
     }
+    '/_authenticated/portal/settings': {
+      id: '/_authenticated/portal/settings'
+      path: '/settings'
+      fullPath: '/portal/settings'
+      preLoaderRoute: typeof AuthenticatedPortalSettingsRouteImport
+      parentRoute: typeof AuthenticatedPortalRoute
+    }
     '/_authenticated/portal/status': {
       id: '/_authenticated/portal/status'
       path: '/status'
@@ -470,6 +490,7 @@ interface AuthenticatedPortalRouteChildren {
   AuthenticatedPortalBrowseRoute: typeof AuthenticatedPortalBrowseRoute
   AuthenticatedPortalDocumentsRoute: typeof AuthenticatedPortalDocumentsRoute
   AuthenticatedPortalPaymentsRoute: typeof AuthenticatedPortalPaymentsRoute
+  AuthenticatedPortalSettingsRoute: typeof AuthenticatedPortalSettingsRoute
   AuthenticatedPortalStatusRoute: typeof AuthenticatedPortalStatusRoute
   AuthenticatedPortalIndexRoute: typeof AuthenticatedPortalIndexRoute
   AuthenticatedPortalPropertiesIdRoute: typeof AuthenticatedPortalPropertiesIdRoute
@@ -479,6 +500,7 @@ const AuthenticatedPortalRouteChildren: AuthenticatedPortalRouteChildren = {
   AuthenticatedPortalBrowseRoute: AuthenticatedPortalBrowseRoute,
   AuthenticatedPortalDocumentsRoute: AuthenticatedPortalDocumentsRoute,
   AuthenticatedPortalPaymentsRoute: AuthenticatedPortalPaymentsRoute,
+  AuthenticatedPortalSettingsRoute: AuthenticatedPortalSettingsRoute,
   AuthenticatedPortalStatusRoute: AuthenticatedPortalStatusRoute,
   AuthenticatedPortalIndexRoute: AuthenticatedPortalIndexRoute,
   AuthenticatedPortalPropertiesIdRoute: AuthenticatedPortalPropertiesIdRoute,

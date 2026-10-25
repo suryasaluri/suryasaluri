@@ -14,6 +14,7 @@ export type Notification = Tables<"notifications">;
 export type LeadNote = Tables<"lead_notes">;
 export type Task = Tables<"tasks">;
 export type Commission = Tables<"commissions">;
+export type LoanApplication = Tables<"loan_applications">;
 
 export type UserRole = Enums<"user_role">;
 export type PropertyType = Enums<"property_type">;
@@ -30,6 +31,19 @@ export type ApprovalStatus = Enums<"approval_status">;
 export type SiteVisitStatus = Enums<"site_visit_status">;
 export type TaskStatus = Enums<"task_status">;
 export type CommissionStatus = Enums<"commission_status">;
+export type LoanStatus = Enums<"loan_status">;
+
+export const INDIAN_BANKS = [
+  "HDFC Bank",
+  "ICICI Bank",
+  "State Bank of India",
+  "IDBI Bank",
+  "Axis Bank",
+  "Punjab National Bank",
+  "Bank of Baroda",
+  "Kotak Mahindra Bank",
+  "LIC Housing Finance",
+] as const;
 
 export const APPROVAL_STAGES: ApprovalStage[] = [
   "booking",

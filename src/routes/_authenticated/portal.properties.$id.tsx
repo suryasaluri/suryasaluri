@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PropertyTypeBadge } from "@/components/PropertyTypeBadge";
+import { PropertyMap } from "@/components/PropertyMap";
+import { LoanApplicationDialog } from "@/components/LoanApplicationDialog";
 import { formatCurrency, formatCurrencyFull } from "@/lib/format";
 import { estimateCost } from "@/lib/costEstimator";
 import { toast } from "sonner";
@@ -129,6 +132,7 @@ function PropertyDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="font-display text-2xl font-bold">{property.code}</h1>
+                  <PropertyTypeBadge type={property.property_type} />
                   <StatusBadge status={property.status} />
                   {isOwn && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -209,17 +213,12 @@ function PropertyDetail() {
               <CardTitle className="text-base">Location</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-xl border border-border">
-                <iframe
-                  title="map"
-                  className="h-64 w-full"
-                  loading="lazy"
-                  src="https://www.openstreetmap.org/export/embed.html?bbox=77.55%2C12.90%2C77.75%2C13.10&layer=mapnik"
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Approximate location — {property.projects?.location}
-              </p>
+              <PropertyMap
+                latitude={property.latitude}
+                longitude={property.longitude}
+                label={`${property.code} — ${property.projects?.location}`}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">{property.projects?.location}</p>
             </CardContent>
           </Card>
         </div>
@@ -280,6 +279,24 @@ function PropertyDetail() {
                   </Link>
                   .
                 </span>
+              </CardContent>
+            </Card>
+          )}
+
+          {isOwn && customer && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Financing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LoanApplicationDialog
+                  customerId={customer.id}
+                  propertyId={property.id}
+                  suggestedAmount={property.price}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Apply directly with a partner bank — we'll share your booking details on request.
+                </p>
               </CardContent>
             </Card>
           )}
