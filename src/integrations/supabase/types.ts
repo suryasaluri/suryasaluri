@@ -483,272 +483,6 @@ export type Database = {
           },
         ];
       };
-      complexes: {
-        Row: {
-          id: string;
-          project_id: string | null;
-          name: string;
-          address: string;
-          total_units: number;
-          amenities: string[] | null;
-          activated_at: string;
-        };
-        Insert: {
-          id?: string;
-          project_id?: string | null;
-          name: string;
-          address: string;
-          total_units?: number;
-          amenities?: string[] | null;
-          activated_at?: string;
-        };
-        Update: {
-          id?: string;
-          project_id?: string | null;
-          name?: string;
-          address?: string;
-          total_units?: number;
-          amenities?: string[] | null;
-          activated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "complexes_project_id_fkey";
-            columns: ["project_id"];
-            isOneToOne: false;
-            referencedRelation: "projects";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      residents: {
-        Row: {
-          id: string;
-          complex_id: string;
-          unit_number: string;
-          name: string;
-          email: string | null;
-          phone: string | null;
-          relation: Database["public"]["Enums"]["resident_relation"];
-          customer_id: string | null;
-          property_id: string | null;
-          move_in_date: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          complex_id: string;
-          unit_number: string;
-          name: string;
-          email?: string | null;
-          phone?: string | null;
-          relation?: Database["public"]["Enums"]["resident_relation"];
-          customer_id?: string | null;
-          property_id?: string | null;
-          move_in_date?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          complex_id?: string;
-          unit_number?: string;
-          name?: string;
-          email?: string | null;
-          phone?: string | null;
-          relation?: Database["public"]["Enums"]["resident_relation"];
-          customer_id?: string | null;
-          property_id?: string | null;
-          move_in_date?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "residents_complex_id_fkey";
-            columns: ["complex_id"];
-            isOneToOne: false;
-            referencedRelation: "complexes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "residents_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "residents_property_id_fkey";
-            columns: ["property_id"];
-            isOneToOne: false;
-            referencedRelation: "properties";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      assets: {
-        Row: {
-          id: string;
-          complex_id: string;
-          name: string;
-          category: Database["public"]["Enums"]["asset_category"];
-          install_date: string;
-          expected_life_years: number;
-          service_interval_months: number;
-          last_service_date: string;
-          notes: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          complex_id: string;
-          name: string;
-          category: Database["public"]["Enums"]["asset_category"];
-          install_date: string;
-          expected_life_years: number;
-          service_interval_months: number;
-          last_service_date: string;
-          notes?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          complex_id?: string;
-          name?: string;
-          category?: Database["public"]["Enums"]["asset_category"];
-          install_date?: string;
-          expected_life_years?: number;
-          service_interval_months?: number;
-          last_service_date?: string;
-          notes?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "assets_complex_id_fkey";
-            columns: ["complex_id"];
-            isOneToOne: false;
-            referencedRelation: "complexes";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      maintenance_tickets: {
-        Row: {
-          id: string;
-          complex_id: string;
-          resident_id: string | null;
-          customer_id: string | null;
-          category: Database["public"]["Enums"]["ticket_category"];
-          priority: Database["public"]["Enums"]["ticket_priority"];
-          title: string;
-          description: string | null;
-          status: Database["public"]["Enums"]["ticket_status"];
-          assigned_vendor: string | null;
-          created_at: string;
-          resolved_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          complex_id: string;
-          resident_id?: string | null;
-          customer_id?: string | null;
-          category: Database["public"]["Enums"]["ticket_category"];
-          priority?: Database["public"]["Enums"]["ticket_priority"];
-          title: string;
-          description?: string | null;
-          status?: Database["public"]["Enums"]["ticket_status"];
-          assigned_vendor?: string | null;
-          created_at?: string;
-          resolved_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          complex_id?: string;
-          resident_id?: string | null;
-          customer_id?: string | null;
-          category?: Database["public"]["Enums"]["ticket_category"];
-          priority?: Database["public"]["Enums"]["ticket_priority"];
-          title?: string;
-          description?: string | null;
-          status?: Database["public"]["Enums"]["ticket_status"];
-          assigned_vendor?: string | null;
-          created_at?: string;
-          resolved_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "maintenance_tickets_complex_id_fkey";
-            columns: ["complex_id"];
-            isOneToOne: false;
-            referencedRelation: "complexes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "maintenance_tickets_resident_id_fkey";
-            columns: ["resident_id"];
-            isOneToOne: false;
-            referencedRelation: "residents";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      maintenance_bills: {
-        Row: {
-          id: string;
-          complex_id: string;
-          resident_id: string;
-          customer_id: string | null;
-          bill_type: Database["public"]["Enums"]["bill_type"];
-          period: string;
-          amount: number;
-          due_date: string;
-          paid_date: string | null;
-          status: Database["public"]["Enums"]["payment_status"];
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          complex_id: string;
-          resident_id: string;
-          customer_id?: string | null;
-          bill_type?: Database["public"]["Enums"]["bill_type"];
-          period: string;
-          amount: number;
-          due_date: string;
-          paid_date?: string | null;
-          status?: Database["public"]["Enums"]["payment_status"];
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          complex_id?: string;
-          resident_id?: string;
-          customer_id?: string | null;
-          bill_type?: Database["public"]["Enums"]["bill_type"];
-          period?: string;
-          amount?: number;
-          due_date?: string;
-          paid_date?: string | null;
-          status?: Database["public"]["Enums"]["payment_status"];
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "maintenance_bills_complex_id_fkey";
-            columns: ["complex_id"];
-            isOneToOne: false;
-            referencedRelation: "complexes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "maintenance_bills_resident_id_fkey";
-            columns: ["resident_id"];
-            isOneToOne: false;
-            referencedRelation: "residents";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       site_settings: {
         Row: {
           id: boolean;
@@ -1158,8 +892,6 @@ export type Database = {
       approval_stage:
         "booking" | "legal_verification" | "finance_clearance" | "registration" | "possession";
       approval_status: "pending" | "approved" | "rejected";
-      asset_category: "lift" | "generator" | "pump" | "fire_safety" | "security_system" | "other";
-      bill_type: "monthly_maintenance" | "sinking_fund" | "special_assessment";
       commission_status: "pending" | "paid";
       document_type:
         | "sale_agreement"
@@ -1180,12 +912,8 @@ export type Database = {
       project_type_mix: "plots" | "flats" | "both";
       property_status: "available" | "blocked" | "sold";
       property_type: "plot" | "flat";
-      resident_relation: "owner" | "tenant";
       site_visit_status: "scheduled" | "completed" | "cancelled" | "no_show";
       task_status: "todo" | "in_progress" | "done";
-      ticket_category: "plumbing" | "electrical" | "civil" | "security" | "housekeeping" | "other";
-      ticket_priority: "low" | "medium" | "high" | "urgent";
-      ticket_status: "open" | "in_progress" | "resolved" | "closed";
       user_role: "customer" | "sales" | "finance" | "legal" | "admin";
       verification_status: "pending" | "verified" | "rejected";
     };
@@ -1317,8 +1045,6 @@ export const Constants = {
         "possession",
       ],
       approval_status: ["pending", "approved", "rejected"],
-      asset_category: ["lift", "generator", "pump", "fire_safety", "security_system", "other"],
-      bill_type: ["monthly_maintenance", "sinking_fund", "special_assessment"],
       commission_status: ["pending", "paid"],
       document_type: [
         "sale_agreement",
@@ -1339,12 +1065,8 @@ export const Constants = {
       project_type_mix: ["plots", "flats", "both"],
       property_status: ["available", "blocked", "sold"],
       property_type: ["plot", "flat"],
-      resident_relation: ["owner", "tenant"],
       site_visit_status: ["scheduled", "completed", "cancelled", "no_show"],
       task_status: ["todo", "in_progress", "done"],
-      ticket_category: ["plumbing", "electrical", "civil", "security", "housekeeping", "other"],
-      ticket_priority: ["low", "medium", "high", "urgent"],
-      ticket_status: ["open", "in_progress", "resolved", "closed"],
       user_role: ["customer", "sales", "finance", "legal", "admin"],
       verification_status: ["pending", "verified", "rejected"],
     },

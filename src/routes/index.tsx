@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { HeroBackground } from "@/components/HeroBackground";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/format";
+import { useSiteSettings } from "@/lib/useSiteSettings";
 import {
   MapPin,
   ArrowRight,
@@ -16,6 +17,11 @@ import {
   ClipboardCheck,
   Users,
   LayoutGrid,
+  Sparkles,
+  TrendingDown,
+  Clock,
+  FileSearch,
+  Quote,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -25,7 +31,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Browse plots and flats, track your booking, payments and documents — all in one place with SAN Connect.",
+          "The subscription platform real estate companies run their sales, finance and legal teams on — plus a branded portal and AI assistant for every buyer.",
       },
     ],
   }),
@@ -47,8 +53,51 @@ function useFeaturedProjects() {
   });
 }
 
+const RESULTS = [
+  {
+    icon: Clock,
+    metric: "↓ Faster collections",
+    desc: "Automatic overdue flags and installment reminders mean fewer manual follow-up calls from your finance team.",
+  },
+  {
+    icon: FileSearch,
+    metric: "Full audit trail",
+    desc: "Every document, approval and status change is timestamped and attributable — nothing lost between teams.",
+  },
+  {
+    icon: TrendingDown,
+    metric: "Fewer status calls",
+    desc: "Buyers track their own booking, payments and documents in a live portal, instead of calling your sales desk.",
+  },
+];
+
+const STORIES = [
+  {
+    quote:
+      "We used to run bookings on spreadsheets across three teams. SAN Connect gave every one of our plot buyers a self-serve portal, and our finance team finally sees overdue accounts the moment they slip.",
+    name: "Priya Ramesh",
+    role: "Operations Head, Sanview Developers",
+    result: "Unified pipeline across 3 projects",
+  },
+  {
+    quote:
+      "The approval board changed how legal and finance work together — nothing moves to registration until every stage is actually cleared, and we can see exactly who's holding things up.",
+    name: "Arvind Nair",
+    role: "Legal Counsel, Meridian Realty Group",
+    result: "5-stage approval visibility",
+  },
+  {
+    quote:
+      "Our buyers ask the AI assistant about their installment schedule before they ever call us. It's the first thing prospects mention when they tour the portal during our sales pitch.",
+    name: "Kavya Iyer",
+    role: "VP Sales, Horizon Estates",
+    result: "AI assistant handles routine buyer questions",
+  },
+];
+
 function Landing() {
   const { data: projects } = useFeaturedProjects();
+  const { data: settings } = useSiteSettings();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -58,14 +107,17 @@ function Landing() {
             <Logo />
           </Link>
           <nav className="hidden gap-8 text-sm text-muted-foreground md:flex">
-            <a href="#projects" className="hover:text-foreground">
-              Projects
+            <a href="#results" className="hover:text-foreground">
+              Results
             </a>
             <a href="#how-it-works" className="hover:text-foreground">
-              How it works
+              Buyer journey
             </a>
             <a href="#platform" className="hover:text-foreground">
-              For our team
+              For your team
+            </a>
+            <a href="#stories" className="hover:text-foreground">
+              Customer stories
             </a>
           </nav>
           <div className="flex items-center gap-2">
@@ -76,7 +128,7 @@ function Landing() {
             </Link>
             <Link to="/auth">
               <Button size="sm" className="bg-primary text-primary-foreground hover:opacity-90">
-                Get started
+                Request a demo
               </Button>
             </Link>
           </div>
@@ -84,22 +136,20 @@ function Landing() {
       </header>
 
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 grid-bg opacity-40" />
-        <div className="absolute inset-0 bg-hero-gradient" />
+        <HeroBackground animation={settings?.hero_animation ?? "aurora"} />
         <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 text-center">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative h-2 w-2 rounded-full bg-primary" />
-            </span>
-            Plots &amp; Flats · One unified platform
+            <Sparkles className="h-3 w-3 text-primary" />
+            Subscription platform · Built for real estate sales &amp; operations teams
           </div>
           <h1 className="mx-auto max-w-3xl text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-            Your land. Your home. <span className="text-primary">One connected journey.</span>
+            Run your entire real estate business
+            <span className="text-primary"> on one connected platform.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            From browsing a plot or flat to booking, payments, document verification and possession
-            — SAN Connect keeps you and our team on the same page, every step of the way.
+            SAN Connect is what growing developers subscribe to for their sales, finance and legal
+            teams — a shared operations dashboard, plus a branded self-serve portal and AI assistant
+            for every buyer. From first lead to final possession.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Link to="/auth">
@@ -107,26 +157,51 @@ function Landing() {
                 size="lg"
                 className="bg-primary text-primary-foreground shadow-glow hover:opacity-90"
               >
-                Browse properties <ArrowRight className="ml-2 h-4 w-4" />
+                See the platform <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
             <a href="#how-it-works">
               <Button size="lg" variant="outline">
-                How it works
+                See the buyer journey
               </Button>
             </a>
           </div>
           <div className="mt-14 grid grid-cols-2 gap-6 text-left md:grid-cols-4 md:gap-8">
             {[
-              { k: "Active projects", v: "3", sub: "Plots, flats & mixed layouts" },
-              { k: "Inventory tracked", v: "25", sub: "Live availability status" },
+              { k: "Teams supported", v: "Sales, Finance, Legal", sub: "One shared dashboard" },
               { k: "Approval stages", v: "5", sub: "Booking to possession" },
-              { k: "Portal access", v: "24×7", sub: "From any device" },
+              { k: "Buyer portal", v: "24×7", sub: "Self-serve, any device" },
+              { k: "AI assistant", v: "Built in", sub: "For buyers and your team" },
             ].map((s) => (
               <div key={s.k} className="rounded-xl border border-border bg-card-gradient p-5">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.k}</div>
-                <div className="mt-2 font-display text-2xl font-bold text-primary">{s.v}</div>
+                <div className="mt-2 font-display text-xl font-bold text-primary">{s.v}</div>
                 <div className="mt-1 text-xs text-muted-foreground">{s.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="results" className="border-t border-border bg-card/40 py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-12 text-center">
+            <div className="text-xs font-mono uppercase tracking-widest text-primary">
+              Why teams switch to SAN Connect
+            </div>
+            <h2 className="mt-3 text-4xl font-bold">Built around the outcomes that matter</h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {RESULTS.map((r) => (
+              <div
+                key={r.metric}
+                className="rounded-2xl border border-border bg-card p-6 shadow-card"
+              >
+                <div className="mb-4 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+                  <r.icon className="h-5 w-5" />
+                </div>
+                <div className="font-display text-lg font-bold">{r.metric}</div>
+                <p className="mt-2 text-sm text-muted-foreground">{r.desc}</p>
               </div>
             ))}
           </div>
@@ -137,9 +212,9 @@ function Landing() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-12 text-center">
             <div className="text-xs font-mono uppercase tracking-widest text-primary">
-              Featured developments
+              See it on real inventory
             </div>
-            <h2 className="mt-3 text-4xl font-bold">Explore our current projects</h2>
+            <h2 className="mt-3 text-4xl font-bold">Live projects running on this platform</h2>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {(projects ?? []).map((p) => (
@@ -180,7 +255,7 @@ function Landing() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-14 text-center">
             <div className="text-xs font-mono uppercase tracking-widest text-primary">
-              Customer journey
+              What your buyers experience
             </div>
             <h2 className="mt-3 text-4xl font-bold">
               Everything tracked, nothing lost in translation
@@ -198,7 +273,11 @@ function Landing() {
                 label: "Book",
                 desc: "Express interest and lock in a property instantly.",
               },
-              { icon: Wallet, label: "Pay", desc: "Track your installment schedule and dues." },
+              {
+                icon: Wallet,
+                label: "Pay",
+                desc: "Track installment schedule and apply for financing.",
+              },
               {
                 icon: FileCheck2,
                 label: "Verify",
@@ -231,7 +310,7 @@ function Landing() {
           <div className="grid items-center gap-12 md:grid-cols-2">
             <div>
               <div className="text-xs font-mono uppercase tracking-widest text-primary">
-                For our sales, finance & legal teams
+                What your subscription includes
               </div>
               <h2 className="mt-3 text-4xl font-bold">
                 One operations dashboard, built for real estate
@@ -239,7 +318,8 @@ function Landing() {
               <p className="mt-4 text-muted-foreground">
                 Sales tracks leads and site visits, finance manages collections and overdue
                 accounts, legal verifies documents and clears approvals — admin sees it all, with
-                reports rolled up automatically.
+                reports rolled up automatically. Connect your website, YouTube, Instagram and TikTok
+                channels to feed leads straight into the pipeline.
               </p>
               <ul className="mt-6 space-y-3 text-sm">
                 {[
@@ -247,6 +327,8 @@ function Landing() {
                   "Installment schedules with automatic overdue flags",
                   "Document verification queue with audit trail",
                   "Multi-stage approval board across booking → possession",
+                  "Marketing & lead-capture integrations (YouTube, Instagram, TikTok, analytics)",
+                  "AI assistant for both your team and your buyers",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
@@ -281,12 +363,45 @@ function Landing() {
         </div>
       </section>
 
+      <section id="stories" className="border-t border-border bg-card/40 py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-12 text-center">
+            <div className="text-xs font-mono uppercase tracking-widest text-primary">
+              Customer stories
+            </div>
+            <h2 className="mt-3 text-4xl font-bold">What teams on SAN Connect say</h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {STORIES.map((s) => (
+              <div
+                key={s.name}
+                className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
+              >
+                <Quote className="h-6 w-6 text-primary/40" />
+                <p className="mt-3 flex-1 text-sm text-foreground/90">{s.quote}</p>
+                <div className="mt-5 border-t border-border pt-4">
+                  <div className="text-sm font-semibold">{s.name}</div>
+                  <div className="text-xs text-muted-foreground">{s.role}</div>
+                  <div className="mt-2 inline-flex items-center rounded-full bg-success/12 px-2.5 py-1 text-[11px] font-medium text-success">
+                    {s.result}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Illustrative customer stories based on typical team workflows on SAN Connect.
+          </p>
+        </div>
+      </section>
+
       <section className="border-t border-border py-20">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <Trees className="mx-auto mb-4 h-8 w-8 text-primary" />
-          <h2 className="text-4xl font-bold">Find your plot. Build your future.</h2>
+          <h2 className="text-4xl font-bold">Bring your team onto one platform.</h2>
           <p className="mt-4 text-muted-foreground">
-            Sign in to browse live inventory and track your journey end to end.
+            Sign in to explore the live demo — buyer portal, operations dashboard and AI assistant,
+            all running on real inventory.
           </p>
           <Link to="/auth">
             <Button size="lg" className="mt-8 bg-primary text-primary-foreground shadow-glow">

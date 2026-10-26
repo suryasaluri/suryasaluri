@@ -240,7 +240,6 @@
   .badge-status-verified,
   .badge-status-paid,
   .badge-status-approved,
-  .badge-status-resolved,
   .badge-status-done {
     background-color: color-mix(in oklch, var(--success) 15%, transparent);
     color: var(--success);
@@ -250,8 +249,7 @@
   .badge-status-todo,
   .badge-status-in_progress,
   .badge-status-submitted,
-  .badge-status-under_review,
-  .badge-status-open {
+  .badge-status-under_review {
     background-color: color-mix(in oklch, var(--warning) 20%, transparent);
     color: color-mix(in oklch, var(--warning) 70%, var(--foreground));
   }
