@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedFmRouteImport } from './routes/_authenticated/fm'
 import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated/portal'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminApprovalsRouteImport } from './routes/_authenticated/admin.approvals'
@@ -25,6 +26,10 @@ import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
 import { Route as AuthenticatedAdminTasksRouteImport } from './routes/_authenticated/admin.tasks'
 import { Route as AuthenticatedAdminWebsiteRouteImport } from './routes/_authenticated/admin.website'
+import { Route as AuthenticatedFmIndexRouteImport } from './routes/_authenticated/fm.index'
+import { Route as AuthenticatedFmAssetsRouteImport } from './routes/_authenticated/fm.assets'
+import { Route as AuthenticatedFmBillingRouteImport } from './routes/_authenticated/fm.billing'
+import { Route as AuthenticatedFmTicketsRouteImport } from './routes/_authenticated/fm.tickets'
 import { Route as AuthenticatedPortalIndexRouteImport } from './routes/_authenticated/portal.index'
 import { Route as AuthenticatedPortalBrowseRouteImport } from './routes/_authenticated/portal.browse'
 import { Route as AuthenticatedPortalDocumentsRouteImport } from './routes/_authenticated/portal.documents'
@@ -60,6 +65,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFmRoute = AuthenticatedFmRouteImport.update({
+  id: '/fm',
+  path: '/fm',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPortalRoute = AuthenticatedPortalRouteImport.update({
@@ -118,6 +128,26 @@ const AuthenticatedAdminWebsiteRoute =
     path: '/website',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedFmIndexRoute = AuthenticatedFmIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedFmRoute,
+} as any)
+const AuthenticatedFmAssetsRoute = AuthenticatedFmAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AuthenticatedFmRoute,
+} as any)
+const AuthenticatedFmBillingRoute = AuthenticatedFmBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedFmRoute,
+} as any)
+const AuthenticatedFmTicketsRoute = AuthenticatedFmTicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => AuthenticatedFmRoute,
+} as any)
 const AuthenticatedPortalIndexRoute =
   AuthenticatedPortalIndexRouteImport.update({
     id: '/',
@@ -167,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/fm': typeof AuthenticatedFmRouteWithChildren
   '/portal': typeof AuthenticatedPortalRouteWithChildren
   '/admin/approvals': typeof AuthenticatedAdminApprovalsRoute
   '/admin/documents': typeof AuthenticatedAdminDocumentsRoute
@@ -176,12 +207,16 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/tasks': typeof AuthenticatedAdminTasksRoute
   '/admin/website': typeof AuthenticatedAdminWebsiteRoute
+  '/fm/assets': typeof AuthenticatedFmAssetsRoute
+  '/fm/billing': typeof AuthenticatedFmBillingRoute
+  '/fm/tickets': typeof AuthenticatedFmTicketsRoute
   '/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
   '/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/portal/status': typeof AuthenticatedPortalStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/fm/': typeof AuthenticatedFmIndexRoute
   '/portal/': typeof AuthenticatedPortalIndexRoute
   '/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
@@ -198,12 +233,16 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/tasks': typeof AuthenticatedAdminTasksRoute
   '/admin/website': typeof AuthenticatedAdminWebsiteRoute
+  '/fm/assets': typeof AuthenticatedFmAssetsRoute
+  '/fm/billing': typeof AuthenticatedFmBillingRoute
+  '/fm/tickets': typeof AuthenticatedFmTicketsRoute
   '/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/portal/payments': typeof AuthenticatedPortalPaymentsRoute
   '/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/portal/status': typeof AuthenticatedPortalStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/fm': typeof AuthenticatedFmIndexRoute
   '/portal': typeof AuthenticatedPortalIndexRoute
   '/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
@@ -215,6 +254,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/fm': typeof AuthenticatedFmRouteWithChildren
   '/_authenticated/portal': typeof AuthenticatedPortalRouteWithChildren
   '/_authenticated/admin/approvals': typeof AuthenticatedAdminApprovalsRoute
   '/_authenticated/admin/documents': typeof AuthenticatedAdminDocumentsRoute
@@ -224,12 +264,16 @@ export interface FileRoutesById {
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/tasks': typeof AuthenticatedAdminTasksRoute
   '/_authenticated/admin/website': typeof AuthenticatedAdminWebsiteRoute
+  '/_authenticated/fm/assets': typeof AuthenticatedFmAssetsRoute
+  '/_authenticated/fm/billing': typeof AuthenticatedFmBillingRoute
+  '/_authenticated/fm/tickets': typeof AuthenticatedFmTicketsRoute
   '/_authenticated/portal/browse': typeof AuthenticatedPortalBrowseRoute
   '/_authenticated/portal/documents': typeof AuthenticatedPortalDocumentsRoute
   '/_authenticated/portal/payments': typeof AuthenticatedPortalPaymentsRoute
   '/_authenticated/portal/settings': typeof AuthenticatedPortalSettingsRoute
   '/_authenticated/portal/status': typeof AuthenticatedPortalStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/fm/': typeof AuthenticatedFmIndexRoute
   '/_authenticated/portal/': typeof AuthenticatedPortalIndexRoute
   '/_authenticated/portal/properties/$id': typeof AuthenticatedPortalPropertiesIdRoute
 }
@@ -241,6 +285,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/admin'
+    | '/fm'
     | '/portal'
     | '/admin/approvals'
     | '/admin/documents'
@@ -250,12 +295,16 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/tasks'
     | '/admin/website'
+    | '/fm/assets'
+    | '/fm/billing'
+    | '/fm/tickets'
     | '/portal/browse'
     | '/portal/documents'
     | '/portal/payments'
     | '/portal/settings'
     | '/portal/status'
     | '/admin/'
+    | '/fm/'
     | '/portal/'
     | '/portal/properties/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -272,12 +321,16 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/tasks'
     | '/admin/website'
+    | '/fm/assets'
+    | '/fm/billing'
+    | '/fm/tickets'
     | '/portal/browse'
     | '/portal/documents'
     | '/portal/payments'
     | '/portal/settings'
     | '/portal/status'
     | '/admin'
+    | '/fm'
     | '/portal'
     | '/portal/properties/$id'
   id:
@@ -288,6 +341,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/fm'
     | '/_authenticated/portal'
     | '/_authenticated/admin/approvals'
     | '/_authenticated/admin/documents'
@@ -297,12 +351,16 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/tasks'
     | '/_authenticated/admin/website'
+    | '/_authenticated/fm/assets'
+    | '/_authenticated/fm/billing'
+    | '/_authenticated/fm/tickets'
     | '/_authenticated/portal/browse'
     | '/_authenticated/portal/documents'
     | '/_authenticated/portal/payments'
     | '/_authenticated/portal/settings'
     | '/_authenticated/portal/status'
     | '/_authenticated/admin/'
+    | '/_authenticated/fm/'
     | '/_authenticated/portal/'
     | '/_authenticated/portal/properties/$id'
   fileRoutesById: FileRoutesById
@@ -357,6 +415,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/fm': {
+      id: '/_authenticated/fm'
+      path: '/fm'
+      fullPath: '/fm'
+      preLoaderRoute: typeof AuthenticatedFmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/portal': {
@@ -428,6 +493,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/website'
       preLoaderRoute: typeof AuthenticatedAdminWebsiteRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/fm/': {
+      id: '/_authenticated/fm/'
+      path: '/'
+      fullPath: '/fm/'
+      preLoaderRoute: typeof AuthenticatedFmIndexRouteImport
+      parentRoute: typeof AuthenticatedFmRoute
+    }
+    '/_authenticated/fm/assets': {
+      id: '/_authenticated/fm/assets'
+      path: '/assets'
+      fullPath: '/fm/assets'
+      preLoaderRoute: typeof AuthenticatedFmAssetsRouteImport
+      parentRoute: typeof AuthenticatedFmRoute
+    }
+    '/_authenticated/fm/billing': {
+      id: '/_authenticated/fm/billing'
+      path: '/billing'
+      fullPath: '/fm/billing'
+      preLoaderRoute: typeof AuthenticatedFmBillingRouteImport
+      parentRoute: typeof AuthenticatedFmRoute
+    }
+    '/_authenticated/fm/tickets': {
+      id: '/_authenticated/fm/tickets'
+      path: '/tickets'
+      fullPath: '/fm/tickets'
+      preLoaderRoute: typeof AuthenticatedFmTicketsRouteImport
+      parentRoute: typeof AuthenticatedFmRoute
     }
     '/_authenticated/portal/': {
       id: '/_authenticated/portal/'
@@ -508,6 +601,24 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
 const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
+interface AuthenticatedFmRouteChildren {
+  AuthenticatedFmAssetsRoute: typeof AuthenticatedFmAssetsRoute
+  AuthenticatedFmBillingRoute: typeof AuthenticatedFmBillingRoute
+  AuthenticatedFmTicketsRoute: typeof AuthenticatedFmTicketsRoute
+  AuthenticatedFmIndexRoute: typeof AuthenticatedFmIndexRoute
+}
+
+const AuthenticatedFmRouteChildren: AuthenticatedFmRouteChildren = {
+  AuthenticatedFmAssetsRoute: AuthenticatedFmAssetsRoute,
+  AuthenticatedFmBillingRoute: AuthenticatedFmBillingRoute,
+  AuthenticatedFmTicketsRoute: AuthenticatedFmTicketsRoute,
+  AuthenticatedFmIndexRoute: AuthenticatedFmIndexRoute,
+}
+
+const AuthenticatedFmRouteWithChildren = AuthenticatedFmRoute._addFileChildren(
+  AuthenticatedFmRouteChildren,
+)
+
 interface AuthenticatedPortalRouteChildren {
   AuthenticatedPortalBrowseRoute: typeof AuthenticatedPortalBrowseRoute
   AuthenticatedPortalDocumentsRoute: typeof AuthenticatedPortalDocumentsRoute
@@ -533,11 +644,13 @@ const AuthenticatedPortalRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedFmRoute: typeof AuthenticatedFmRouteWithChildren
   AuthenticatedPortalRoute: typeof AuthenticatedPortalRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedFmRoute: AuthenticatedFmRouteWithChildren,
   AuthenticatedPortalRoute: AuthenticatedPortalRouteWithChildren,
 }
 
