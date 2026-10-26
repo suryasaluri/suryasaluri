@@ -165,12 +165,82 @@
   }
 }
 
+/* Admin-selectable landing page hero backgrounds (HeroBackground.tsx) */
+@layer utilities {
+  @keyframes hero-aurora-drift-a {
+    0%,
+    100% {
+      transform: translate(-6%, -8%) scale(1);
+    }
+    50% {
+      transform: translate(8%, 4%) scale(1.15);
+    }
+  }
+  @keyframes hero-aurora-drift-b {
+    0%,
+    100% {
+      transform: translate(10%, 6%) scale(1.1);
+    }
+    50% {
+      transform: translate(-8%, -4%) scale(0.95);
+    }
+  }
+  .hero-aurora-blob-a {
+    background: radial-gradient(circle, oklch(0.85 0.09 50 / 0.5), transparent 70%);
+    animation: hero-aurora-drift-a 16s ease-in-out infinite;
+  }
+  .hero-aurora-blob-b {
+    background: radial-gradient(circle, oklch(0.75 0.1 160 / 0.28), transparent 70%);
+    animation: hero-aurora-drift-b 20s ease-in-out infinite;
+  }
+
+  @keyframes hero-grid-pulse {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+  .hero-grid-pulse {
+    animation: hero-grid-pulse 5s ease-in-out infinite;
+  }
+
+  @keyframes hero-particle-float {
+    0% {
+      transform: translateY(0) translateX(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.6;
+    }
+    90% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateY(-120px) translateX(var(--drift, 20px));
+      opacity: 0;
+    }
+  }
+  .hero-particle {
+    position: absolute;
+    bottom: -10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--primary);
+    animation: hero-particle-float linear infinite;
+  }
+}
+
 /* status badge helpers used across the app */
 @layer components {
   .badge-status-available,
   .badge-status-verified,
   .badge-status-paid,
   .badge-status-approved,
+  .badge-status-resolved,
   .badge-status-done {
     background-color: color-mix(in oklch, var(--success) 15%, transparent);
     color: var(--success);
@@ -180,7 +250,8 @@
   .badge-status-todo,
   .badge-status-in_progress,
   .badge-status-submitted,
-  .badge-status-under_review {
+  .badge-status-under_review,
+  .badge-status-open {
     background-color: color-mix(in oklch, var(--warning) 20%, transparent);
     color: color-mix(in oklch, var(--warning) 70%, var(--foreground));
   }

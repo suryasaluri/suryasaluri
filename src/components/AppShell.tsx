@@ -10,6 +10,8 @@ import {
   ListTodo,
   LogOut,
   Menu,
+  Globe,
+  Home,
 } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,7 +59,10 @@ const nav: NavItem[] = [
     icon: ListTodo,
     roles: ["admin", "sales", "finance", "legal"],
   },
+  { to: "/admin/website", label: "Website & Marketing", icon: Globe, roles: ["admin"] },
 ];
+
+const EXTERNAL_NAV = [{ to: "/fm", label: "Facility Management", icon: Home }];
 
 function SidebarNav({ role, onNavigate }: { role: UserRole; onNavigate?: () => void }) {
   const location = useLocation();
@@ -83,6 +88,22 @@ function SidebarNav({ role, onNavigate }: { role: UserRole; onNavigate?: () => v
           </Link>
         );
       })}
+      <div className="mt-3 border-t border-sidebar-border pt-3">
+        <div className="px-3 pb-1 text-[10px] uppercase tracking-wider text-sidebar-foreground/40">
+          Other tools
+        </div>
+        {EXTERNAL_NAV.map((n) => (
+          <Link
+            key={n.to}
+            to={n.to}
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent/50"
+          >
+            <n.icon className="h-4 w-4" />
+            <span className="flex-1">{n.label}</span>
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }

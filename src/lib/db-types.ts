@@ -15,6 +15,13 @@ export type LeadNote = Tables<"lead_notes">;
 export type Task = Tables<"tasks">;
 export type Commission = Tables<"commissions">;
 export type LoanApplication = Tables<"loan_applications">;
+export type SiteSettings = Tables<"site_settings">;
+export type Integration = Tables<"integrations">;
+export type Complex = Tables<"complexes">;
+export type Resident = Tables<"residents">;
+export type Asset = Tables<"assets">;
+export type MaintenanceTicket = Tables<"maintenance_tickets">;
+export type MaintenanceBill = Tables<"maintenance_bills">;
 
 export type UserRole = Enums<"user_role">;
 export type PropertyType = Enums<"property_type">;
@@ -32,6 +39,64 @@ export type SiteVisitStatus = Enums<"site_visit_status">;
 export type TaskStatus = Enums<"task_status">;
 export type CommissionStatus = Enums<"commission_status">;
 export type LoanStatus = Enums<"loan_status">;
+export type HeroAnimation = Enums<"hero_animation">;
+export type IntegrationPlatform = Enums<"integration_platform">;
+export type ResidentRelation = Enums<"resident_relation">;
+export type AssetCategory = Enums<"asset_category">;
+export type TicketCategory = Enums<"ticket_category">;
+export type TicketPriority = Enums<"ticket_priority">;
+export type TicketStatus = Enums<"ticket_status">;
+export type BillType = Enums<"bill_type">;
+
+export const ASSET_CATEGORY_LABELS: Record<AssetCategory, string> = {
+  lift: "Lift",
+  generator: "Generator",
+  pump: "Water Pump",
+  fire_safety: "Fire Safety",
+  security_system: "Security System",
+  other: "Other",
+};
+
+export const TICKET_CATEGORY_LABELS: Record<TicketCategory, string> = {
+  plumbing: "Plumbing",
+  electrical: "Electrical",
+  civil: "Civil",
+  security: "Security",
+  housekeeping: "Housekeeping",
+  other: "Other",
+};
+
+export const BILL_TYPE_LABELS: Record<BillType, string> = {
+  monthly_maintenance: "Monthly Maintenance",
+  sinking_fund: "Sinking Fund",
+  special_assessment: "Special Assessment",
+};
+
+export const INTEGRATION_LABELS: Record<
+  IntegrationPlatform,
+  { label: string; description: string }
+> = {
+  youtube: {
+    label: "YouTube",
+    description: "Capture leads from video comments, descriptions and end-screen links.",
+  },
+  google_analytics: {
+    label: "Website Analytics",
+    description: "Track visitor behaviour on your public site and attribute leads to campaigns.",
+  },
+  instagram: {
+    label: "Instagram",
+    description: "Sync DMs and comment inquiries from your property reels and posts.",
+  },
+  tiktok: {
+    label: "TikTok",
+    description: "Capture inquiries from TikTok ads and organic video engagement.",
+  },
+  facebook_meta: {
+    label: "Facebook / Meta Ads",
+    description: "Pull lead-form submissions from Facebook and Instagram ad campaigns.",
+  },
+};
 
 export const INDIAN_BANKS = [
   "HDFC Bank",

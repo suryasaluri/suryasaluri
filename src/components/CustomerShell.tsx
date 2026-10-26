@@ -11,6 +11,7 @@ import {
   Menu,
   Bell,
   Settings,
+  Building,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
@@ -29,6 +30,7 @@ const nav = [
   { to: "/portal/documents", label: "My Documents", icon: FileText },
   { to: "/portal/payments", label: "My Payments", icon: Wallet },
   { to: "/portal/status", label: "Status Tracker", icon: RouteIcon },
+  { to: "/fm", label: "My Society", icon: Building },
   { to: "/portal/settings", label: "Settings", icon: Settings },
 ];
 
