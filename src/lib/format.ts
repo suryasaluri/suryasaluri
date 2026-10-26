@@ -40,6 +40,11 @@ export function formatDateTime(date: string | null | undefined): string {
   });
 }
 
+export function formatTime(date: string | null | undefined): string {
+  if (!date) return "—";
+  return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function titleCase(s: string | null | undefined): string {
   if (!s) return "—";
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

@@ -22,6 +22,7 @@ export type Resident = Tables<"residents">;
 export type Asset = Tables<"assets">;
 export type MaintenanceTicket = Tables<"maintenance_tickets">;
 export type MaintenanceBill = Tables<"maintenance_bills">;
+export type AttendanceRecord = Tables<"attendance_records">;
 
 export type UserRole = Enums<"user_role">;
 export type PropertyType = Enums<"property_type">;
@@ -47,6 +48,15 @@ export type TicketCategory = Enums<"ticket_category">;
 export type TicketPriority = Enums<"ticket_priority">;
 export type TicketStatus = Enums<"ticket_status">;
 export type BillType = Enums<"bill_type">;
+export type AttendanceStatus = Enums<"attendance_status">;
+
+export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
+  present: "Present",
+  absent: "Absent",
+  half_day: "Half Day",
+  leave: "Leave",
+  holiday: "Holiday",
+};
 
 export const ASSET_CATEGORY_LABELS: Record<AssetCategory, string> = {
   lift: "Lift",

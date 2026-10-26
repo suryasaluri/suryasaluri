@@ -12,6 +12,7 @@ import {
   Menu,
   Globe,
   Home,
+  Clock,
 } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,12 @@ const nav: NavItem[] = [
     to: "/admin/tasks",
     label: "Team & Tasks",
     icon: ListTodo,
+    roles: ["admin", "sales", "finance", "legal"],
+  },
+  {
+    to: "/admin/attendance",
+    label: "Attendance",
+    icon: Clock,
     roles: ["admin", "sales", "finance", "legal"],
   },
   { to: "/admin/website", label: "Website & Marketing", icon: Globe, roles: ["admin"] },

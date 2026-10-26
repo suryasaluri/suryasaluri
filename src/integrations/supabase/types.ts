@@ -813,6 +813,47 @@ export type Database = {
           },
         ];
       };
+      attendance_records: {
+        Row: {
+          id: string;
+          profile_id: string;
+          date: string;
+          check_in: string | null;
+          check_out: string | null;
+          status: Database["public"]["Enums"]["attendance_status"];
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          date?: string;
+          check_in?: string | null;
+          check_out?: string | null;
+          status?: Database["public"]["Enums"]["attendance_status"];
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          date?: string;
+          check_in?: string | null;
+          check_out?: string | null;
+          status?: Database["public"]["Enums"]["attendance_status"];
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       loan_applications: {
         Row: {
           id: string;
@@ -1159,6 +1200,7 @@ export type Database = {
         "booking" | "legal_verification" | "finance_clearance" | "registration" | "possession";
       approval_status: "pending" | "approved" | "rejected";
       asset_category: "lift" | "generator" | "pump" | "fire_safety" | "security_system" | "other";
+      attendance_status: "present" | "absent" | "half_day" | "leave" | "holiday";
       bill_type: "monthly_maintenance" | "sinking_fund" | "special_assessment";
       commission_status: "pending" | "paid";
       document_type:
@@ -1318,6 +1360,7 @@ export const Constants = {
       ],
       approval_status: ["pending", "approved", "rejected"],
       asset_category: ["lift", "generator", "pump", "fire_safety", "security_system", "other"],
+      attendance_status: ["present", "absent", "half_day", "leave", "holiday"],
       bill_type: ["monthly_maintenance", "sinking_fund", "special_assessment"],
       commission_status: ["pending", "paid"],
       document_type: [

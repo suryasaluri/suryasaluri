@@ -241,6 +241,7 @@
   .badge-status-paid,
   .badge-status-approved,
   .badge-status-resolved,
+  .badge-status-present,
   .badge-status-done {
     background-color: color-mix(in oklch, var(--success) 15%, transparent);
     color: var(--success);
@@ -251,11 +252,14 @@
   .badge-status-in_progress,
   .badge-status-submitted,
   .badge-status-under_review,
-  .badge-status-open {
+  .badge-status-open,
+  .badge-status-half_day,
+  .badge-status-leave {
     background-color: color-mix(in oklch, var(--warning) 20%, transparent);
     color: color-mix(in oklch, var(--warning) 70%, var(--foreground));
   }
   .badge-status-overdue,
+  .badge-status-absent,
   .badge-status-rejected {
     background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
     color: var(--destructive);
