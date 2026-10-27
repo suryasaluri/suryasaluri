@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +53,8 @@ function useFeaturedProjects() {
 
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2400&q=80";
+const HERO_IMAGE_FALLBACK =
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=2400&q=80";
 
 const RESULTS = [
   {
@@ -102,6 +105,31 @@ const PILLARS = [
   { icon: ShieldCheck, label: "Legal", sub: "Docs & approvals" },
 ];
 
+function HeroPhoto() {
+  const [src, setSrc] = useState<string | null>(HERO_IMAGE);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-[#161029] via-[#1f1744] to-[#0a0714]">
+      {src && (
+        <img
+          src={src}
+          alt=""
+          loading="eager"
+          decoding="async"
+          className="animate-kenburns absolute inset-0 h-full w-full object-cover"
+          style={{ filter: "brightness(0.6) saturate(1.15)", mixBlendMode: "luminosity" }}
+          onError={() => setSrc((s) => (s === HERO_IMAGE ? HERO_IMAGE_FALLBACK : null))}
+        />
+      )}
+      {/* Tints the photo's luminance into the gradient's navy/purple palette,
+          so the hero reads as a moody night cityscape regardless of the
+          source photo's actual lighting — and still looks intentional if the
+          image never loads at all. */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#241a3d]/40 via-transparent to-[#0a0714]/60 mix-blend-multiply" />
+    </div>
+  );
+}
+
 function Landing() {
   const { data: projects } = useFeaturedProjects();
 
@@ -109,11 +137,8 @@ function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       {/* ============================================================= HERO */}
       <section className="relative flex min-h-[100svh] flex-col overflow-hidden bg-black text-white">
-        <div
-          className="animate-kenburns absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-black" />
+        <HeroPhoto />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/35 to-black/85" />
 
         <header className="relative z-10">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
