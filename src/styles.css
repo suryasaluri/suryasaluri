@@ -236,6 +236,37 @@
   }
 }
 
+/* Cinematic landing-page hero (index.tsx only) — slow Ken Burns zoom on the
+   full-bleed background photo, inspired by the reference sites' full-bleed
+   imagery treatment. Kept off the functional app screens on purpose. */
+@layer utilities {
+  @keyframes kenburns {
+    0% {
+      transform: scale(1.08) translate(0, 0);
+    }
+    100% {
+      transform: scale(1.18) translate(-1.5%, -1.5%);
+    }
+  }
+  .animate-kenburns {
+    animation: kenburns 22s ease-out forwards;
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-up {
+    animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
 /* status badge helpers used across the app */
 @layer components {
   .badge-status-available,
