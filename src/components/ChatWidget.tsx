@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Bot, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { getDemoAgentReply } from "@/lib/demoAgent";
 import { cn } from "@/lib/utils";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -34,13 +34,10 @@ export function ChatWidget({ audience = "customer" }: { audience?: "customer" | 
     setInput("");
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-agent", {
-        body: { messages: next },
-      });
-      if (error) throw error;
+      const reply = await getDemoAgentReply(text);
       setMessages([
         ...next,
-        { role: "assistant", content: data?.reply || "Sorry, I couldn't find an answer to that." },
+        { role: "assistant", content: reply || "Sorry, I couldn't find an answer to that." },
       ]);
     } catch {
       setMessages([
