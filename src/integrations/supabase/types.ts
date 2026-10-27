@@ -941,6 +941,8 @@ export type Database = {
           cover_image_url: string | null;
           layout_image_url: string | null;
           type_mix: Database["public"]["Enums"]["project_type_mix"];
+          rera_number: string | null;
+          rera_registered_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -951,6 +953,8 @@ export type Database = {
           cover_image_url?: string | null;
           layout_image_url?: string | null;
           type_mix?: Database["public"]["Enums"]["project_type_mix"];
+          rera_number?: string | null;
+          rera_registered_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -961,6 +965,8 @@ export type Database = {
           cover_image_url?: string | null;
           layout_image_url?: string | null;
           type_mix?: Database["public"]["Enums"]["project_type_mix"];
+          rera_number?: string | null;
+          rera_registered_at?: string | null;
           created_at?: string;
         };
         Relationships: [];

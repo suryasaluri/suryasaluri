@@ -150,6 +150,12 @@ function PropertyDetail() {
               </div>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">{property.projects?.description}</p>
+            {property.projects?.rera_number && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                RERA Registered: {property.projects.rera_number}
+              </div>
+            )}
           </div>
 
           <Card>

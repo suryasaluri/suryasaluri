@@ -286,6 +286,11 @@ function Landing() {
                     {p.location}
                   </div>
                   <h3 className="mt-1.5 text-xl font-bold">{p.name}</h3>
+                  {p.rera_number && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/80">
+                      <ShieldCheck className="h-3 w-3" /> RERA {p.rera_number}
+                    </div>
+                  )}
                   <div className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-white group-hover:underline">
                     View details <ArrowRight className="h-3.5 w-3.5" />
                   </div>

@@ -13,6 +13,7 @@ import {
   Globe,
   Home,
   Clock,
+  Percent,
 } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -46,6 +47,7 @@ const nav: NavItem[] = [
   { to: "/admin/inventory", label: "Inventory", icon: Building2, roles: ["admin", "sales"] },
   { to: "/admin/leads", label: "Leads & CRM", icon: Users, roles: ["admin", "sales"] },
   { to: "/admin/payments", label: "Payments & Finance", icon: Wallet, roles: ["admin", "finance"] },
+  { to: "/admin/commissions", label: "Commissions", icon: Percent, roles: ["admin", "sales"] },
   { to: "/admin/documents", label: "Document Center", icon: FileCheck2, roles: ["admin", "legal"] },
   {
     to: "/admin/approvals",
