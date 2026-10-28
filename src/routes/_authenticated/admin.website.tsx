@@ -1,29 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Youtube, Instagram, Facebook, Music2, Activity, Check, Link2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/AppShell";
-import { HeroBackground } from "@/components/HeroBackground";
 import { supabase } from "@/integrations/supabase/client";
-import { useSiteSettings } from "@/lib/useSiteSettings";
 import { useProfile } from "@/lib/useProfile";
-import { INTEGRATION_LABELS, type HeroAnimation, type Integration } from "@/lib/db-types";
+import { INTEGRATION_LABELS, type Integration } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_authenticated/admin/website")({
   component: WebsiteSettings,
 });
-
-const ANIMATION_OPTIONS: { value: HeroAnimation; label: string; desc: string }[] = [
-  { value: "aurora", label: "Aurora", desc: "Slow-drifting soft color blobs" },
-  { value: "grid_pulse", label: "Grid Pulse", desc: "Breathing dotted-grid texture" },
-  { value: "particles", label: "Particles", desc: "Rising accent-colored specks" },
-  { value: "none", label: "Static", desc: "No motion — plain background" },
-];
 
 const PLATFORM_ICON = {
   youtube: Youtube,
@@ -32,73 +22,6 @@ const PLATFORM_ICON = {
   tiktok: Music2,
   facebook_meta: Facebook,
 } as const;
-
-function HeroAnimationCard() {
-  const { data: settings } = useSiteSettings();
-  const { data: profile } = useProfile();
-  const qc = useQueryClient();
-  const [selected, setSelected] = useState<HeroAnimation>("aurora");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (settings) setSelected(settings.hero_animation);
-  }, [settings]);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("site_settings")
-        .update({ hero_animation: selected, updated_by: profile?.id })
-        .eq("id", true);
-      if (error) throw error;
-      toast.success("Landing page animation updated");
-      qc.invalidateQueries({ queryKey: ["site-settings"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't save");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Landing page animation</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="relative h-28 overflow-hidden rounded-xl border border-border bg-background">
-          <HeroBackground animation={selected} />
-          <div className="relative flex h-full items-center justify-center text-xs text-muted-foreground">
-            Live preview
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {ANIMATION_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSelected(opt.value)}
-              className={`rounded-xl border p-3 text-left transition ${
-                selected === opt.value
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/40"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{opt.label}</span>
-                {selected === opt.value && <Check className="h-3.5 w-3.5 text-primary" />}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
-        <Button onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save animation"}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
 
 function IntegrationRow({ integration }: { integration: Integration }) {
   const qc = useQueryClient();
@@ -230,7 +153,6 @@ function WebsiteSettings() {
         desc="Control the public landing page and connect channels that feed your lead pipeline."
       />
       <div className="space-y-6 p-4 md:p-8">
-        <HeroAnimationCard />
         <IntegrationsCard />
       </div>
     </div>
