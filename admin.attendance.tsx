@@ -12,6 +12,9 @@ import {
   CalendarCheck2,
   CalendarX2,
   TimerReset,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +34,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/useProfile";
 import { formatDate, formatTime, initials } from "@/lib/format";
-import { ATTENDANCE_STATUS_LABELS, type AttendanceRecord } from "@/lib/db-types";
+import {
+  ATTENDANCE_STATUS_LABELS,
+  type AttendanceRecord,
+  type AttendanceStatus,
+} from "@/lib/db-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/attendance")({
@@ -46,6 +53,30 @@ const STATUS_DOT: Record<string, string> = {
   half_day: "bg-[var(--warning)]",
   leave: "bg-[var(--warning)]",
   absent: "bg-[var(--destructive)]",
+};
+
+const STATUS_CELL: Record<string, string> = {
+  present: "bg-[var(--success)]/15 text-[var(--success)]",
+  half_day: "bg-[var(--warning)]/15 text-[var(--warning)]",
+  leave: "bg-[var(--warning)]/15 text-[var(--warning)]",
+  absent: "bg-[var(--destructive)]/15 text-[var(--destructive)]",
+};
+
+function statusLabel(s: string): string {
+  return ATTENDANCE_STATUS_LABELS[s as AttendanceStatus] ?? s;
+}
+
+const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+const addDays = (d: Date, n: number) => {
+  const c = new Date(d);
+  c.setDate(c.getDate() + n);
+  return c;
+};
+const startOfWeekMon = (d: Date) => {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  const offset = (c.getDay() + 6) % 7;
+  return addDays(c, -offset);
 };
 
 function elapsedLabel(from: string, to: Date): string {
@@ -147,8 +178,6 @@ function MyAttendanceCard({ profileId }: { profileId: string }) {
     else break;
   }
 
-  const recentDays = monthRecords.filter((r) => r.date !== todayStr()).slice(0, 6);
-
   const tiles: { label: string; value: string | number; icon: typeof CalendarCheck2 }[] = [
     { label: "Present", value: monthCounts.present ?? 0, icon: CalendarCheck2 },
     { label: "Leave", value: monthCounts.leave ?? 0, icon: CalendarX2 },
@@ -228,37 +257,66 @@ function MyAttendanceCard({ profileId }: { profileId: string }) {
           ))}
         </div>
 
-        {!isLoading && recentDays.length > 0 && (
+        {!isLoading && (
           <div>
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Recent days</div>
-            <div className="space-y-1">
-              {recentDays.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <span
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full",
-                        STATUS_DOT[r.status] ?? "bg-muted-foreground",
-                      )}
-                    />
-                    {formatDate(r.date)}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-muted-foreground">
-                      {formatTime(r.check_in)} – {formatTime(r.check_out)}
-                    </span>
-                    <StatusBadge status={r.status} />
-                  </span>
-                </div>
-              ))}
-            </div>
+            <div className="mb-2 text-xs font-medium text-muted-foreground">This month</div>
+            <MyMonthCalendar records={monthRecords} />
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function MyMonthCalendar({ records }: { records: AttendanceRecord[] }) {
+  const byDate = useMemo(() => new Map(records.map((r) => [r.date, r])), [records]);
+  const today = new Date();
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const lead = (first.getDay() + 6) % 7;
+  const totalCells = Math.ceil((lead + last.getDate()) / 7) * 7;
+  const gridStart = addDays(first, -lead);
+  const days = Array.from({ length: totalCells }, (_, i) => addDays(gridStart, i));
+  const todayKey = todayStr();
+
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((d, i) => {
+          const inMonth = d.getMonth() === today.getMonth();
+          const key = dateKey(d);
+          const rec = byDate.get(key);
+          const isToday = key === todayKey;
+          return (
+            <div
+              key={i}
+              title={
+                inMonth
+                  ? `${formatDate(key)} · ${rec ? statusLabel(rec.status) : "No record"}`
+                  : undefined
+              }
+              className={cn(
+                "flex h-8 items-center justify-center rounded-md text-[11px]",
+                !inMonth && "opacity-0",
+                inMonth && isToday && "ring-1 ring-primary",
+                inMonth && rec
+                  ? STATUS_CELL[rec.status]
+                  : inMonth
+                    ? "text-muted-foreground/50"
+                    : "",
+              )}
+            >
+              {d.getDate()}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -340,6 +398,377 @@ function attendanceRate(row: TeamRow): number {
   if (!total) return 0;
   const weighted = (row.counts.present ?? 0) + (row.counts.half_day ?? 0) * 0.5;
   return Math.round((weighted / total) * 100);
+}
+
+type TeamCalStaff = { id: string; full_name: string | null; role: string };
+type TeamCalRecord = {
+  profile_id: string;
+  date: string;
+  status: string;
+  check_in: string | null;
+  check_out: string | null;
+};
+type TeamCalVisit = { assigned_staff: string | null; scheduled_date: string; status: string };
+
+function useTeamCalendar(rangeStart: string, rangeEnd: string) {
+  return useQuery({
+    queryKey: ["team-calendar", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const [staff, records, visits] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .in("role", ["sales", "finance", "legal", "admin"])
+          .order("full_name"),
+        supabase
+          .from("attendance_records")
+          .select("profile_id, date, status, check_in, check_out")
+          .gte("date", rangeStart)
+          .lte("date", rangeEnd),
+        supabase
+          .from("site_visits")
+          .select("assigned_staff, scheduled_date, status")
+          .gte("scheduled_date", `${rangeStart}T00:00:00`)
+          .lte("scheduled_date", `${rangeEnd}T23:59:59`),
+      ]);
+      if (staff.error) throw staff.error;
+      if (records.error) throw records.error;
+      if (visits.error) throw visits.error;
+      return {
+        staff: staff.data as TeamCalStaff[],
+        records: records.data as TeamCalRecord[],
+        visits: visits.data as TeamCalVisit[],
+      };
+    },
+  });
+}
+
+function MonthGrid({
+  days,
+  monthStart,
+  staff,
+  recMap,
+  visitMap,
+}: {
+  days: Date[];
+  monthStart: Date;
+  staff: TeamCalStaff[];
+  recMap: Map<string, TeamCalRecord>;
+  visitMap: Map<string, number>;
+}) {
+  const todayKey = todayStr();
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-muted-foreground">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((d, i) => {
+          const inMonth = d.getMonth() === monthStart.getMonth();
+          const key = dateKey(d);
+          const isToday = key === todayKey;
+          const visitCount = staff.reduce(
+            (sum, s) => sum + (visitMap.get(`${s.id}__${key}`) ?? 0),
+            0,
+          );
+          return (
+            <div
+              key={i}
+              className={cn(
+                "min-h-[60px] rounded-lg border p-1",
+                inMonth ? "border-border" : "border-transparent opacity-30",
+                isToday && "ring-1 ring-primary",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">{d.getDate()}</span>
+                {visitCount > 0 && <MapPin className="h-3 w-3 text-[var(--chart-3)]" />}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-0.5">
+                {staff.map((s) => {
+                  const rec = recMap.get(`${s.id}__${key}`);
+                  return (
+                    <span
+                      key={s.id}
+                      title={`${s.full_name ?? "—"} — ${rec ? statusLabel(rec.status) : "No record"}`}
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full",
+                        rec ? (STATUS_DOT[rec.status] ?? "bg-muted-foreground/40") : "bg-muted",
+                      )}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekGrid({
+  days,
+  staff,
+  recMap,
+  visitMap,
+}: {
+  days: Date[];
+  staff: TeamCalStaff[];
+  recMap: Map<string, TeamCalRecord>;
+  visitMap: Map<string, number>;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr>
+            <th className="w-32 pb-2 text-left font-medium text-muted-foreground">Staff</th>
+            {days.map((d) => (
+              <th key={dateKey(d)} className="pb-2 text-center font-medium text-muted-foreground">
+                <div>{d.toLocaleDateString("en-IN", { weekday: "short" })}</div>
+                <div className="text-[10px]">{d.getDate()}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {staff.map((s) => (
+            <tr key={s.id} className="border-t border-border/60">
+              <td className="py-2 pr-2 font-medium">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="bg-primary/15 text-[9px] text-primary">
+                      {initials(s.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{s.full_name}</span>
+                </div>
+              </td>
+              {days.map((d) => {
+                const key = dateKey(d);
+                const rec = recMap.get(`${s.id}__${key}`);
+                const visits = visitMap.get(`${s.id}__${key}`) ?? 0;
+                return (
+                  <td key={key} className="py-2 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span
+                        className={cn(
+                          "inline-block rounded px-1.5 py-0.5 text-[10px]",
+                          rec
+                            ? (STATUS_CELL[rec.status] ?? "bg-muted text-muted-foreground")
+                            : "text-muted-foreground/40",
+                        )}
+                      >
+                        {rec ? statusLabel(rec.status) : "—"}
+                      </span>
+                      {visits > 0 && (
+                        <span className="flex items-center gap-0.5 text-[9px] text-[var(--chart-3)]">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {visits}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DayList({
+  date,
+  staff,
+  recMap,
+  visitMap,
+}: {
+  date: Date;
+  staff: TeamCalStaff[];
+  recMap: Map<string, TeamCalRecord>;
+  visitMap: Map<string, number>;
+}) {
+  const key = dateKey(date);
+  return (
+    <div className="space-y-1.5">
+      {staff.map((s) => {
+        const rec = recMap.get(`${s.id}__${key}`);
+        const visits = visitMap.get(`${s.id}__${key}`) ?? 0;
+        return (
+          <div
+            key={s.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2.5"
+          >
+            <div className="flex items-center gap-2">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-primary/15 text-[10px] text-primary">
+                  {initials(s.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="text-sm font-medium">{s.full_name}</div>
+                <div className="text-[11px] capitalize text-muted-foreground">{s.role}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {visits > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-[var(--chart-3)]/15 px-2 py-0.5 text-[11px] text-[var(--chart-3)]">
+                  <MapPin className="h-3 w-3" /> Site visit{visits > 1 ? ` ×${visits}` : ""}
+                </span>
+              )}
+              {rec ? (
+                <>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTime(rec.check_in)} – {formatTime(rec.check_out)}
+                  </span>
+                  <StatusBadge status={rec.status} />
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">No record</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {!staff.length && <p className="text-xs text-muted-foreground">No team members.</p>}
+    </div>
+  );
+}
+
+function TeamCalendarCard() {
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
+  const [anchor, setAnchor] = useState(() => new Date());
+
+  const range = useMemo(() => {
+    if (viewMode === "day") {
+      return { start: dateKey(anchor), end: dateKey(anchor), days: [anchor], monthStart: anchor };
+    }
+    if (viewMode === "week") {
+      const start = startOfWeekMon(anchor);
+      const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+      return { start: dateKey(days[0]), end: dateKey(days[6]), days, monthStart: anchor };
+    }
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    const lead = (first.getDay() + 6) % 7;
+    const gridStart = addDays(first, -lead);
+    const totalCells = Math.ceil((lead + last.getDate()) / 7) * 7;
+    const days = Array.from({ length: totalCells }, (_, i) => addDays(gridStart, i));
+    return {
+      start: dateKey(days[0]),
+      end: dateKey(days[days.length - 1]),
+      days,
+      monthStart: first,
+    };
+  }, [viewMode, anchor]);
+
+  const { data, isLoading } = useTeamCalendar(range.start, range.end);
+
+  const recMap = useMemo(() => {
+    const m = new Map<string, TeamCalRecord>();
+    for (const r of data?.records ?? []) m.set(`${r.profile_id}__${r.date}`, r);
+    return m;
+  }, [data]);
+
+  const visitMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const v of data?.visits ?? []) {
+      if (!v.assigned_staff || v.status === "cancelled") continue;
+      const k = `${v.assigned_staff}__${v.scheduled_date.slice(0, 10)}`;
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [data]);
+
+  const staff = data?.staff ?? [];
+
+  const navigate = (dir: 1 | -1) => {
+    setAnchor((a) => {
+      if (viewMode === "day") return addDays(a, dir);
+      if (viewMode === "week") return addDays(a, dir * 7);
+      const c = new Date(a);
+      c.setMonth(c.getMonth() + dir);
+      return c;
+    });
+  };
+
+  const rangeLabel =
+    viewMode === "day"
+      ? anchor.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : viewMode === "week"
+        ? `${range.days[0].toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} – ${range.days[6].toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`
+        : anchor.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+  return (
+    <Card>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
+        <CardTitle className="text-base">Team calendar</CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-border p-0.5">
+            {(["day", "week", "month"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs capitalize transition",
+                  viewMode === v
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={() => setAnchor(new Date())}
+            >
+              Today
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-3 text-sm font-medium">{rangeLabel}</div>
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!isLoading && viewMode === "month" && (
+          <MonthGrid
+            days={range.days}
+            monthStart={range.monthStart}
+            staff={staff}
+            recMap={recMap}
+            visitMap={visitMap}
+          />
+        )}
+        {!isLoading && viewMode === "week" && (
+          <WeekGrid days={range.days} staff={staff} recMap={recMap} visitMap={visitMap} />
+        )}
+        {!isLoading && viewMode === "day" && (
+          <DayList date={range.days[0]} staff={staff} recMap={recMap} visitMap={visitMap} />
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function TeamAttendanceCard() {
@@ -468,6 +897,7 @@ function Attendance() {
       />
       <div className="space-y-6 p-4 md:p-8">
         <MyAttendanceCard profileId={profile.id} />
+        {isAdmin && <TeamCalendarCard />}
         {isAdmin && <TeamAttendanceCard />}
         {!isAdmin && (
           <Card>
